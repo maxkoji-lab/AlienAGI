@@ -34,6 +34,6 @@ export function useBrief() {
       if (!res.ok) throw new Error("Failed to fetch brief");
       return api.brief.latest.responses[200].parse(await res.json());
     },
-    refetchInterval: 60000,
+    refetchInterval: 10000,
   });
 }
