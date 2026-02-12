@@ -82,6 +82,83 @@ interface TokenAnalysis {
   profile: TokenProfile | null;
 }
 
+function buildScannerBrief(
+  analysis: TokenAnalysis,
+  live: ScannerLiveData | null,
+  alerts: XAlert[],
+  monitor: { active: boolean; token: { mint: string; symbol: string } | null; alertCount: number } | undefined
+): string {
+  const p = analysis.profile;
+  const name = p ? `${p.name} ($${p.symbol})` : analysis.mint.slice(0, 12) + "...";
+  const dateStr = new Date(analysis.analyzedAt).toLocaleString();
+
+  const nci = live ? live.nci.toFixed(1) : analysis.nciRaw;
+  const holders = live ? live.holders.toLocaleString() : analysis.holders.toLocaleString();
+  const band = live?.band || analysis.band;
+  const posture = live?.posture || analysis.posture;
+  const whaleConc = live ? live.whaleConcentration.toFixed(2) + "%" : analysis.whaleConcentration;
+
+  let brief = `# ALIENAGI Brief — ${name}
+Scanned: ${dateStr}
+
+Mint: ${analysis.mint}
+`;
+
+  if (p) {
+    brief += `\n## Token Profile`;
+    if (p.priceUsd) {
+      const price = parseFloat(p.priceUsd);
+      brief += `\nPrice: $${price < 0.01 ? price.toExponential(2) : price.toFixed(4)}`;
+    }
+    if (p.marketCap) brief += `\nMarket Cap: $${p.marketCap >= 1e6 ? (p.marketCap / 1e6).toFixed(1) + "M" : p.marketCap.toLocaleString()}`;
+    if (p.fdv) brief += `\nFDV: $${p.fdv >= 1e6 ? (p.fdv / 1e6).toFixed(1) + "M" : p.fdv.toLocaleString()}`;
+    if (p.volume24h) brief += `\nVolume (24h): $${p.volume24h >= 1e6 ? (p.volume24h / 1e6).toFixed(1) + "M" : p.volume24h.toLocaleString()}`;
+    brief += `\n`;
+  }
+
+  if (p?.description) {
+    brief += `\n## Lore\n${p.description}\n`;
+  }
+
+  brief += `
+## Conviction Index
+NCI: ${nci}/100  (${band})
+Operator posture: ${posture}
+
+## On-Chain Metrics
+Holders: ${holders}
+Whale Concentration (Top 20): ${whaleConc}
+`;
+
+  if (p) {
+    const links: string[] = [];
+    if (p.twitterHandle) links.push(`X: ${p.twitterHandle}`);
+    if (p.websites.length > 0) links.push(`Web: ${p.websites[0].url}`);
+    if (p.telegramUrl) links.push(`Telegram: ${p.telegramUrl}`);
+    if (p.discordUrl) links.push(`Discord: ${p.discordUrl}`);
+    if (links.length > 0) {
+      brief += `\n## Social Links\n${links.join("\n")}\n`;
+    }
+  }
+
+  if (alerts.length > 0) {
+    brief += `\n## Influencer Alerts (${alerts.length})\n`;
+    for (const a of alerts.slice(0, 5)) {
+      brief += `- @${a.username} (${a.followers.toLocaleString()} followers): "${a.tweetText.slice(0, 80)}..."\n`;
+    }
+  }
+
+  if (monitor) {
+    brief += `\n## X Monitor\nStatus: ${monitor.active ? "ACTIVE" : "INACTIVE"}\n`;
+  }
+
+  if (analysis.aiAnalysis) {
+    brief += `\n## BabyAGI-3 Analysis\n${analysis.aiAnalysis}\n`;
+  }
+
+  return brief;
+}
+
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const clocks = useWorldClocks();
@@ -602,8 +679,17 @@ export default function Dashboard() {
 
           {/* Terminal/Brief Section */}
           <div className="lg:col-span-1">
-            <TerminalCard title="Operator Briefing" className="h-full min-h-[400px]" delay={0.6}>
-              {loadingBrief ? (
+            <TerminalCard
+              title={analysis ? `Briefing: ${analysis.profile?.symbol ? `$${analysis.profile.symbol}` : analysis.mint.slice(0, 8) + "..."}` : "Operator Briefing"}
+              className="h-full min-h-[400px]"
+              delay={0.6}
+            >
+              {analysis ? (
+                <BriefTerminal
+                  content={buildScannerBrief(analysis, scannerLive, xAlerts, monitorStatus)}
+                  generatedAt={analysis.analyzedAt}
+                />
+              ) : loadingBrief ? (
                  <div className="h-full flex flex-col items-center justify-center text-primary/50 gap-2">
                    <div className="w-4 h-4 bg-primary/50 animate-ping rounded-full"></div>
                    <span className="text-xs animate-pulse">GENERATING INTELLIGENCE...</span>
