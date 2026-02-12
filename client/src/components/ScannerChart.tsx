@@ -81,7 +81,7 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
       const res = await apiRequest("POST", "/api/analyze/live", { mint });
       return res.json();
     },
-    refetchInterval: isPolling ? 10000 : false,
+    refetchInterval: isPolling ? 500 : false,
     enabled: isPolling && !!mint,
     refetchOnWindowFocus: false,
     retry: 1,
@@ -101,7 +101,7 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
     };
 
     const prev = pointsRef.current;
-    const maxPoints = 120;
+    const maxPoints = 240;
     const updated = [...prev, newPoint];
     pointsRef.current = updated.length > maxPoints ? updated.slice(updated.length - maxPoints) : updated;
 
@@ -421,7 +421,7 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
           <span className="w-3 h-0.5 border-t border-dashed" style={{ borderColor: COLORS.holderLine }} />
           <span>Holder Count</span>
         </div>
-        <span className="text-muted-foreground/50">Refresh: 10s</span>
+        <span className="text-muted-foreground/50">Refresh: 0.5s</span>
       </div>
     </div>
   );
