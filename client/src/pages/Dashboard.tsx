@@ -53,7 +53,7 @@ export default function Dashboard() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-primary/20 pb-6">
           <div className="space-y-1">
             <h1 className="text-3xl md:text-5xl tracking-tighter glow-text">
-              NOOP<span className="text-foreground">COIN</span> <span className="text-xs align-top opacity-70">v1.0.3</span>
+              ALIEN<span className="text-foreground">AGI</span> <span className="text-xs align-top opacity-70">v1.0.3</span>
             </h1>
             <p className="text-sm font-mono text-muted-foreground flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
@@ -74,7 +74,7 @@ export default function Dashboard() {
 
         {/* Top Metrics Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <TerminalCard title="Network Conviction Index" delay={0.1} highlight>
+          <TerminalCard title="Alien Conviction Index" delay={0.1} highlight>
             <div className="flex items-center justify-between">
               <MetricValue 
                 label="Current NCI"
@@ -171,7 +171,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <footer className="border-t border-primary/20 pt-6 mt-8 flex flex-col md:flex-row justify-between items-center text-xs text-muted-foreground font-mono">
-          <p>NOOPCOIN OPERATOR TERMINAL // SYSTEM ID: XJ-9</p>
+          <p>ALIENAGI OPERATOR TERMINAL // SYSTEM ID: XJ-9</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <span>LATENCY: 12ms</span>
             <span>NODES: 4 Active</span>
