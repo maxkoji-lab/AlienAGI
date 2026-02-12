@@ -52,6 +52,7 @@ interface TokenProfile {
   websites: { url: string; label?: string }[];
   socials: { url: string; type: string }[];
   twitterHandle: string | null;
+  twitterUrl: string | null;
   telegramUrl: string | null;
   discordUrl: string | null;
   dexscreenerUrl: string | null;
@@ -133,6 +134,7 @@ Whale Concentration (Top 20): ${whaleConc}
   if (p) {
     const links: string[] = [];
     if (p.twitterHandle) links.push(`X: ${p.twitterHandle}`);
+    else if (p.twitterUrl) links.push(`X Search: ${p.twitterUrl}`);
     if (p.websites.length > 0) links.push(`Web: ${p.websites[0].url}`);
     if (p.telegramUrl) links.push(`Telegram: ${p.telegramUrl}`);
     if (p.discordUrl) links.push(`Discord: ${p.discordUrl}`);
@@ -553,13 +555,13 @@ export default function Dashboard() {
                           {w.label || "Website"}
                         </a>
                       ))}
-                      {analysis.profile.twitterHandle && (
-                        <a href={`https://x.com/${analysis.profile.twitterHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      {analysis.profile.twitterUrl && (
+                        <a href={analysis.profile.twitterUrl} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
                           data-testid="link-twitter"
                         >
                           <span className="font-bold">X</span>
-                          {analysis.profile.twitterHandle}
+                          {analysis.profile.twitterHandle || "Search"}
                         </a>
                       )}
                       {analysis.profile.telegramUrl && (

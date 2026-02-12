@@ -12,6 +12,7 @@ export interface TokenProfile {
   websites: { url: string; label?: string }[];
   socials: { url: string; type: string }[];
   twitterHandle: string | null;
+  twitterUrl: string | null;
   telegramUrl: string | null;
   discordUrl: string | null;
   dexscreenerUrl: string | null;
@@ -38,8 +39,11 @@ export async function fetchTokenProfile(mint: string): Promise<TokenProfile | nu
 
     let twitterHandle: string | null = null;
     if (twitterSocial) {
-      const match = twitterSocial.url.match(/(?:twitter\.com|x\.com)\/(@?\w+)/);
-      twitterHandle = match ? (match[1].startsWith("@") ? match[1] : `@${match[1]}`) : twitterSocial.url;
+      const match = twitterSocial.url.match(/(?:twitter\.com|x\.com)\/(@?[A-Za-z0-9_]{1,15})(?:\/|$|\?)/);
+      const invalidPaths = ["i", "search", "explore", "home", "settings", "messages", "notifications", "hashtag"];
+      if (match && !invalidPaths.includes(match[1].replace("@", "").toLowerCase())) {
+        twitterHandle = match[1].startsWith("@") ? match[1] : `@${match[1]}`;
+      }
     }
 
     let description = "";
@@ -71,6 +75,9 @@ export async function fetchTokenProfile(mint: string): Promise<TokenProfile | nu
       websites,
       socials,
       twitterHandle,
+      twitterUrl: twitterHandle
+        ? `https://x.com/${twitterHandle.replace("@", "")}`
+        : `https://x.com/search?q=${encodeURIComponent(mint)}`,
       telegramUrl: telegramSocial?.url || null,
       discordUrl: discordSocial?.url || null,
       dexscreenerUrl: pair.url || null,
