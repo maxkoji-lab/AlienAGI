@@ -771,18 +771,10 @@ export default function Dashboard() {
         {/* Chart Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <TerminalCard title="NCI Time Series Analysis" className="h-full min-h-[400px]" delay={0.5}>
-              <div className="absolute top-4 right-4 flex gap-4 text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-1" style={{ backgroundColor: "#00e5ff" }} />
-                  <span className="text-muted-foreground">NCI Raw</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-1" style={{ backgroundColor: "#ff00ff", borderTop: "1px dashed #ff00ff" }} />
-                  <span className="text-muted-foreground">EMA Trend</span>
-                </div>
+            <TerminalCard title="Trade" className="h-full min-h-[400px]" delay={0.5}>
+              <div className="h-full flex items-center justify-center">
+                <span className="text-xs font-mono text-muted-foreground/50 uppercase tracking-widest">Coming Soon</span>
               </div>
-              <NciChart data={metrics || []} />
             </TerminalCard>
           </div>
 
