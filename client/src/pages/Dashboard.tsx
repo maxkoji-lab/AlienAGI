@@ -4,6 +4,7 @@ import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan } from "lucide-react";
+import alienBg from "@assets/VS_1770881377474.png";
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,16 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8 relative overflow-hidden">
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: `url(${alienBg})`,
+          backgroundSize: "contain",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          opacity: 0.15,
+        }}
+      />
       <div className="scanline"></div>
       
       <div className="max-w-7xl mx-auto relative z-10 space-y-6">
