@@ -8,9 +8,34 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
+
+function useWorldClocks() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const fmt = (tz: string) =>
+    now.toLocaleTimeString("en-US", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+  return {
+    us: fmt("America/New_York"),
+    eu: fmt("Europe/London"),
+    asia: fmt("Asia/Tokyo"),
+  };
+}
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
+  const clocks = useWorldClocks();
   const { data: metrics, isLoading: loadingMetrics } = useMetrics();
   const { data: latest, isLoading: loadingLatest } = useLatestMetric();
   const { data: brief, isLoading: loadingBrief } = useBrief();
@@ -74,9 +99,21 @@ export default function Dashboard() {
               <Vault className="w-4 h-4" />
               TREASURY
             </Button>
-            <div className="text-right hidden md:block">
-              <p className="text-xs text-muted-foreground uppercase tracking-widest">Current Block Time</p>
-              <p className="font-mono text-primary font-bold">{new Date().toLocaleTimeString()}</p>
+            <div className="hidden md:flex items-center gap-3">
+              <div className="text-center" data-testid="clock-us">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">US/ET</p>
+                <p className="font-mono text-primary font-bold text-sm">{clocks.us}</p>
+              </div>
+              <div className="w-px h-6 bg-primary/20" />
+              <div className="text-center" data-testid="clock-eu">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">EU/GMT</p>
+                <p className="font-mono text-cyan-400 font-bold text-sm">{clocks.eu}</p>
+              </div>
+              <div className="w-px h-6 bg-primary/20" />
+              <div className="text-center" data-testid="clock-asia">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">ASIA/JST</p>
+                <p className="font-mono text-purple-400 font-bold text-sm">{clocks.asia}</p>
+              </div>
             </div>
             <div className="p-2 border border-primary/30 bg-primary/5 rounded-sm">
               <Cpu className="w-6 h-6 text-primary animate-pulse" />
