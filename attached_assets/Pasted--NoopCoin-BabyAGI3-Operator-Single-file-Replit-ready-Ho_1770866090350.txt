@@ -1,0 +1,393 @@
+# NoopCoin BabyAGI3 Operator (Single-file / Replit-ready)
+# - Holders via Helius DAS getTokenAccounts (paginated)
+# - Whale flow via Helius Enhanced Transactions by address
+# - NCI-lite (0-100) = holders growth + whale net flow (+ holders size)
+# Safe: no trading, no private keys.
+
+from __future__ import annotations
+
+import os, json, time, math, sqlite3
+from dataclasses import dataclass
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, List, Tuple, Optional
+
+import requests
+
+# -------------------------
+# Config (env / Replit Secrets)
+# -------------------------
+HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "").strip()
+NOOP_MINT = os.getenv("NOOP_MINT", "").strip()
+
+NOOP_LOOP_SECONDS = int(os.getenv("NOOP_LOOP_SECONDS", "90"))
+NOOP_WHALE_TOP_N = int(os.getenv("NOOP_WHALE_TOP_N", "20"))
+NOOP_WHALE_WINDOW_HOURS = float(os.getenv("NOOP_WHALE_WINDOW_HOURS", "6"))
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+OUTPUT_DIR = os.getenv("NOOP_OUTPUT_DIR", "output")
+DB_PATH = os.getenv("NOOP_DB_PATH", "noopcoin.db")
+
+HELIUS_RPC_URL = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
+HELIUS_ENHANCED_BASE = "https://api-mainnet.helius-rpc.com/v0"
+
+# -------------------------
+# Utils
+# -------------------------
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+def ensure_dir(path: str) -> None:
+    os.makedirs(path, exist_ok=True)
+
+def write_file(path: str, content: str) -> None:
+    ensure_dir(os.path.dirname(path))
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+def clip(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
+    return max(lo, min(hi, x))
+
+def telegram_send(text: str) -> str:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return "Telegram not configured"
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    r = requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": text[:3800]}, timeout=20)
+    if r.status_code >= 300:
+        return f"Telegram failed: {r.status_code} {r.text}"
+    return "Telegram sent"
+
+# -------------------------
+# SQLite (metrics + whale last signatures)
+# -------------------------
+class DB:
+    def __init__(self, path: str):
+        self.path = path
+        self._init()
+
+    def _init(self):
+        with sqlite3.connect(self.path) as con:
+            cur = con.cursor()
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS metrics (
+                ts TEXT PRIMARY KEY,
+                mint TEXT NOT NULL,
+                holders INTEGER,
+                whale_net_flow REAL,
+                nci_raw REAL,
+                nci_ema REAL
+              )
+            """)
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS whale_state (
+                owner TEXT PRIMARY KEY,
+                last_sig TEXT
+              )
+            """)
+            con.commit()
+
+    def insert_metric(self, mint: str, holders: int, whale_net_flow: float, nci_raw: float, nci_ema: float):
+        with sqlite3.connect(self.path) as con:
+            cur = con.cursor()
+            cur.execute("""
+              INSERT OR REPLACE INTO metrics (ts, mint, holders, whale_net_flow, nci_raw, nci_ema)
+              VALUES (?, ?, ?, ?, ?, ?)
+            """, (utc_now_iso(), mint, holders, float(whale_net_flow), float(nci_raw), float(nci_ema)))
+            con.commit()
+
+    def latest_metric(self, mint: str) -> Optional[Tuple[str, int, float, float, float]]:
+        with sqlite3.connect(self.path) as con:
+            cur = con.cursor()
+            cur.execute("""
+              SELECT ts, holders, whale_net_flow, nci_raw, nci_ema
+              FROM metrics WHERE mint=? ORDER BY ts DESC LIMIT 1
+            """, (mint,))
+            return cur.fetchone()
+
+    def metric_at_or_before(self, mint: str, iso_ts: str) -> Optional[Tuple[str, int]]:
+        with sqlite3.connect(self.path) as con:
+            cur = con.cursor()
+            cur.execute("""
+              SELECT ts, holders
+              FROM metrics WHERE mint=? AND ts<=?
+              ORDER BY ts DESC LIMIT 1
+            """, (mint, iso_ts))
+            row = cur.fetchone()
+            return (row[0], row[1]) if row else None
+
+    def get_last_sig(self, owner: str) -> Optional[str]:
+        with sqlite3.connect(self.path) as con:
+            cur = con.cursor()
+            cur.execute("SELECT last_sig FROM whale_state WHERE owner=?", (owner,))
+            row = cur.fetchone()
+            return row[0] if row else None
+
+    def set_last_sig(self, owner: str, sig: str) -> None:
+        with sqlite3.connect(self.path) as con:
+            cur = con.cursor()
+            cur.execute("INSERT OR REPLACE INTO whale_state (owner, last_sig) VALUES (?, ?)", (owner, sig))
+            con.commit()
+
+# -------------------------
+# Helius helpers
+# -------------------------
+def rpc_post(method: str, params: dict) -> Dict[str, Any]:
+    if not HELIUS_API_KEY:
+        raise RuntimeError("HELIUS_API_KEY missing (set it in Replit Secrets).")
+    payload = {"jsonrpc": "2.0", "id": "1", "method": method, "params": params}
+    r = requests.post(HELIUS_RPC_URL, json=payload, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    if "error" in data:
+        raise RuntimeError(str(data["error"]))
+    return data["result"]
+
+def get_token_accounts_page(mint: str, page: int, limit: int = 1000) -> Dict[str, Any]:
+    # Helius DAS getTokenAccounts (paginated)
+    return rpc_post("getTokenAccounts", {"mint": mint, "page": page, "limit": limit, "displayOptions": {}})
+
+def get_holders_snapshot(mint: str, min_ui_amount: float = 0.0) -> Tuple[int, Dict[str, float]]:
+    owner_bal: Dict[str, float] = {}
+    page = 1
+    while True:
+        res = get_token_accounts_page(mint, page=page, limit=1000)
+        accounts = (res or {}).get("tokenAccounts") or []
+        if not accounts:
+            break
+        for ta in accounts:
+            owner = ta.get("owner")
+            amt = ta.get("tokenAmount") or {}
+            ui = float(amt.get("uiAmount") or 0.0)
+            if not owner:
+                continue
+            owner_bal[owner] = owner_bal.get(owner, 0.0) + ui
+        if len(accounts) < 1000:
+            break
+        page += 1
+
+    # filter dust
+    owner_bal = {o: b for o, b in owner_bal.items() if b > min_ui_amount}
+    holders = len(owner_bal)
+    return holders, owner_bal
+
+def pick_top_whales(owner_bal: Dict[str, float], top_n: int) -> List[Tuple[str, float]]:
+    return sorted(owner_bal.items(), key=lambda x: x[1], reverse=True)[:top_n]
+
+def get_enhanced_txs(address: str, limit: int = 100) -> List[Dict[str, Any]]:
+    # Helius Enhanced tx by address
+    url = f"{HELIUS_ENHANCED_BASE}/addresses/{address}/transactions"
+    r = requests.get(url, params={"api-key": HELIUS_API_KEY, "limit": str(limit)}, timeout=30)
+    r.raise_for_status()
+    return r.json()
+
+def whale_net_flow_owner(owner: str, mint: str, window_seconds: int, stop_sig: Optional[str]) -> Tuple[float, Optional[str]]:
+    now = int(datetime.now(timezone.utc).timestamp())
+    cutoff = now - window_seconds
+
+    txs = get_enhanced_txs(owner, limit=100)
+    newest_sig = txs[0].get("signature") if txs else None
+
+    net = 0.0
+    for tx in txs:
+        sig = tx.get("signature")
+        if stop_sig and sig == stop_sig:
+            break
+
+        ts = tx.get("timestamp") or tx.get("blockTime") or 0
+        if ts and int(ts) < cutoff:
+            continue
+
+        for t in (tx.get("tokenTransfers") or []):
+            if (t.get("mint") or "").strip() != mint:
+                continue
+
+            from_u = (t.get("fromUserAccount") or "").strip()
+            to_u = (t.get("toUserAccount") or "").strip()
+
+            try:
+                amt = float(t.get("tokenAmount") or 0.0)
+            except Exception:
+                amt = 0.0
+
+            if to_u == owner:
+                net += amt
+            if from_u == owner:
+                net -= amt
+
+    return net, newest_sig
+
+def whales_net_flow(db: DB, mint: str, whales: List[str], window_seconds: int) -> float:
+    total = 0.0
+    for w in whales:
+        last_sig = db.get_last_sig(w)
+        net, newest_sig = whale_net_flow_owner(w, mint, window_seconds, last_sig)
+        total += net
+        if newest_sig:
+            db.set_last_sig(w, newest_sig)
+    return total
+
+# -------------------------
+# Conviction Index (NCI-lite)
+# -------------------------
+@dataclass
+class NCIInputs:
+    holders: int
+    holders_delta_24h: int
+    whale_net_flow: float  # token units
+
+def compute_nci_raw(inp: NCIInputs) -> float:
+    # Holder growth: -20 -> 0, +100 -> 1
+    H = clip((inp.holders_delta_24h + 20) / 120.0)
+
+    # Whale flow: logistic squash so spikes don't dominate
+    # k tunes sensitivity; we auto-adapt a bit based on holder size (rough scale)
+    # You'll tune k after launch once you see typical whale_flow magnitudes.
+    base_k = 0.0005
+    size_factor = 1.0 + clip(inp.holders / 20000.0)  # 1..2
+    k = base_k / size_factor
+    W = 1.0 / (1.0 + math.exp(-k * inp.whale_net_flow))  # 0..1
+
+    # Holder size score: 0..1 by 0..20k holders
+    S = clip(inp.holders / 20000.0)
+
+    # Simple fragility proxy: if no growth, penalize
+    F = clip(1.0 - H)
+
+    raw01 = (0.45 * H) + (0.30 * W) + (0.15 * S) + (0.10 * (1.0 - F))
+    return 100.0 * raw01
+
+def ema(prev: Optional[float], new: float, alpha: float = 0.35) -> float:
+    return new if prev is None else (alpha * new + (1 - alpha) * prev)
+
+def band_and_posture(nci: float) -> Tuple[str, str]:
+    if nci < 25:
+        return ("0–24 Survival", "Calm resilience. Recruit builders. Minimal hype.")
+    if nci < 50:
+        return ("25–49 Warm", "Cautious optimism. Small raids. Meme-first.")
+    if nci < 70:
+        return ("50–69 Conviction", "Confident. Daily brief + raids + creator call.")
+    if nci < 85:
+        return ("70–84 Momentum", "Bigger raids. Whale watch. Celebrate wins, keep it tight.")
+    return ("85–100 Euphoria", "Hype + safety rails: anti-scam, sizing reminder, cool-down tone.")
+
+# -------------------------
+# Output formatting
+# -------------------------
+def build_brief(mint: str, holders: int, holders_delta_24h: int, whale_flow: float, nci: float, band: str, posture: str,
+                whale_top_n: int, whale_window_hours: float) -> str:
+    direction = "NET BUY" if whale_flow > 0 else ("NET SELL" if whale_flow < 0 else "FLAT")
+    return f"""# NOOP Brief — {datetime.now().strftime('%Y-%m-%d %H:%M')} (SGT)
+
+**Mint:** `{mint}`
+
+## Conviction Index
+- **NCI:** **{nci:.1f}/100**  ({band})
+- **Operator posture:** {posture}
+
+## Community Growth
+- **Holders (unique):** {holders:,}
+- **Holders Δ (approx 24h):** {holders_delta_24h:+,}
+
+## Whale Watch ({whale_top_n} whales, {whale_window_hours:g}h window)
+- **Whale net token flow:** {whale_flow:,.2f} ({direction})
+
+## Today’s NOOP Moves
+- Ship 1 meme + 1 short lore drop (<=120 words).
+- Run a 10-minute raid window (funny, not spammy).
+- Recruit 3 creators (memes / clips / edits).
+
+## Raid Lines (copy-paste)
+- NOOP doesn’t promise utility. It *becomes* the utility. 🧠
+- If you’re reading this, you’re early. If you’re coping, you’re family.
+- Conviction isn’t a tweet. It’s showing up again tomorrow.
+"""
+
+# -------------------------
+# Main operator loop
+# -------------------------
+def main():
+    ensure_dir(OUTPUT_DIR)
+    db = DB(DB_PATH)
+
+    if not HELIUS_API_KEY:
+        msg = "Missing HELIUS_API_KEY. Set it in Replit Secrets."
+        print(msg)
+        write_file(f"{OUTPUT_DIR}/noop_state.json", json.dumps({"ok": False, "ts": utc_now_iso(), "error": msg}, indent=2))
+        return
+
+    while True:
+        mint = os.getenv("NOOP_MINT", "").strip()  # re-read so you can update Secrets without redeploy
+        if not mint:
+            msg = "NOOP_MINT not set yet. Waiting for CA/mint to be published..."
+            print(msg)
+            write_file(f"{OUTPUT_DIR}/noop_state.json", json.dumps({"ok": False, "ts": utc_now_iso(), "reason": msg}, indent=2))
+            time.sleep(NOOP_LOOP_SECONDS)
+            continue
+
+        try:
+            # 1) holders snapshot
+            holders, owner_bal = get_holders_snapshot(mint, min_ui_amount=0.0)
+
+            # 2) holders delta 24h (approx, based on last stored metric near 24h ago)
+            ts_24h_ago = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
+            old = db.metric_at_or_before(mint, ts_24h_ago)
+            old_holders = old[1] if old else None
+            holders_delta_24h = (holders - old_holders) if old_holders is not None else 0
+
+            # 3) whales = top N owners by balance
+            whales = pick_top_whales(owner_bal, NOOP_WHALE_TOP_N)
+            whale_addrs = [w[0] for w in whales]
+
+            # 4) whale net flow (token units) over window
+            window_seconds = int(NOOP_WHALE_WINDOW_HOURS * 3600)
+            whale_flow = whales_net_flow(db, mint, whale_addrs, window_seconds)
+
+            # 5) NCI
+            prev = db.latest_metric(mint)
+            prev_ema = prev[4] if prev else None
+
+            raw = compute_nci_raw(NCIInputs(holders=holders, holders_delta_24h=int(holders_delta_24h), whale_net_flow=float(whale_flow)))
+            nci = ema(prev_ema, raw, alpha=0.35)
+            band, posture = band_and_posture(nci)
+
+            # 6) persist + output files
+            db.insert_metric(mint, holders, whale_flow, raw, nci)
+
+            brief = build_brief(mint, holders, int(holders_delta_24h), whale_flow, nci, band, posture, NOOP_WHALE_TOP_N, NOOP_WHALE_WINDOW_HOURS)
+            write_file(f"{OUTPUT_DIR}/noop_brief.md", brief)
+            write_file(f"{OUTPUT_DIR}/noop_state.json", json.dumps({
+                "ok": True,
+                "ts": utc_now_iso(),
+                "mint": mint,
+                "holders": holders,
+                "holders_delta_24h": int(holders_delta_24h),
+                "whale_top_n": NOOP_WHALE_TOP_N,
+                "whale_window_hours": NOOP_WHALE_WINDOW_HOURS,
+                "whale_net_flow": whale_flow,
+                "nci_raw": raw,
+                "nci_ema": nci,
+                "band": band,
+                "posture": posture
+            }, indent=2))
+
+            # 7) optional telegram triggers
+            if prev_ema is not None:
+                if prev_ema < 50 <= nci:
+                    telegram_send(f"NOOP NCI crossed 50 ✅ ({nci:.1f})\nHolders: {holders:,}\nWhaleFlow: {whale_flow:,.2f}")
+                if prev_ema < 70 <= nci:
+                    telegram_send(f"NOOP NCI crossed 70 🚀 ({nci:.1f})\nMomentum zone.\nHolders: {holders:,}")
+                if prev_ema - nci >= 15:
+                    telegram_send(f"NOOP NCI dropped hard ⚠️ ({prev_ema:.1f} → {nci:.1f})\nWhaleFlow: {whale_flow:,.2f}")
+
+            print(f"[{utc_now_iso()}] holders={holders} holdersΔ24h={holders_delta_24h:+} whaleFlow={whale_flow:.2f} NCI={nci:.1f} ({band})")
+
+        except Exception as e:
+            err = f"{type(e).__name__}: {e}"
+            print("ERROR:", err)
+            write_file(f"{OUTPUT_DIR}/noop_state.json", json.dumps({"ok": False, "ts": utc_now_iso(), "mint": mint, "error": err}, indent=2))
+
+        time.sleep(NOOP_LOOP_SECONDS)
+
+if __name__ == "__main__":
+    main()
