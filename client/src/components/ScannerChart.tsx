@@ -13,14 +13,25 @@ interface LiveDataPoint {
   whaleConcentration: number;
 }
 
+export interface ScannerLiveData {
+  nci: number;
+  holders: number;
+  whaleConcentration: number;
+  band: string;
+  posture: string;
+  prevNci: number;
+  prevHolders: number;
+}
+
 interface ScannerChartProps {
   mint: string;
   initialNci: number;
   initialHolders: number;
   initialWhaleConcentration: number;
+  onLiveUpdate?: (data: ScannerLiveData) => void;
 }
 
-export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleConcentration }: ScannerChartProps) {
+export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleConcentration, onLiveUpdate }: ScannerChartProps) {
   const [points, setPoints] = useState<LiveDataPoint[]>([]);
   const [isPolling, setIsPolling] = useState(true);
   const prevMintRef = useRef(mint);
@@ -53,6 +64,8 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
 
   const lastProcessedRef = useRef<number>(0);
 
+  const pendingUpdateRef = useRef<ScannerLiveData | null>(null);
+
   useEffect(() => {
     if (!liveData || !dataUpdatedAt || dataUpdatedAt <= lastProcessedRef.current) return;
     lastProcessedRef.current = dataUpdatedAt;
@@ -67,9 +80,29 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
     setPoints(prev => {
       const maxPoints = 60;
       const updated = [...prev, newPoint];
-      return updated.length > maxPoints ? updated.slice(updated.length - maxPoints) : updated;
+      const trimmed = updated.length > maxPoints ? updated.slice(updated.length - maxPoints) : updated;
+
+      const prevPt = trimmed.length > 1 ? trimmed[trimmed.length - 2] : trimmed[0];
+      pendingUpdateRef.current = {
+        nci: liveData.nciRaw,
+        holders: liveData.holders,
+        whaleConcentration: parseFloat(liveData.whaleConcentration),
+        band: liveData.band || "",
+        posture: liveData.posture || "",
+        prevNci: prevPt.nci,
+        prevHolders: prevPt.holders,
+      };
+
+      return trimmed;
     });
   }, [liveData, dataUpdatedAt]);
+
+  useEffect(() => {
+    if (pendingUpdateRef.current && onLiveUpdate) {
+      onLiveUpdate(pendingUpdateRef.current);
+      pendingUpdateRef.current = null;
+    }
+  }, [points, onLiveUpdate]);
 
   const latestPoint = points.length > 0 ? points[points.length - 1] : null;
   const prevPoint = points.length > 1 ? points[points.length - 2] : null;
