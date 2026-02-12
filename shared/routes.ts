@@ -43,6 +43,10 @@ export const api = {
       },
     },
   },
+  analyze: {
+    method: 'POST' as const,
+    path: '/api/analyze' as const,
+  },
   treasury: {
     stats: {
       method: 'GET' as const,

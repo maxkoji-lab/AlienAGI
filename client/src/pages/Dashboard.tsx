@@ -3,13 +3,16 @@ import { TerminalCard } from "@/components/TerminalCard";
 import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
-import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault } from "lucide-react";
+import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan } from "lucide-react";
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 function useWorldClocks() {
   const [now, setNow] = useState(new Date());
@@ -34,12 +37,52 @@ function useWorldClocks() {
   };
 }
 
+interface TokenAnalysis {
+  mint: string;
+  holders: number;
+  topWhales: number;
+  whaleConcentration: string;
+  nciRaw: string;
+  band: string;
+  posture: string;
+  aiAnalysis: string | null;
+  analyzedAt: string;
+}
+
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const clocks = useWorldClocks();
   const { data: metrics, isLoading: loadingMetrics } = useMetrics();
   const { data: latest, isLoading: loadingLatest } = useLatestMetric();
   const { data: brief, isLoading: loadingBrief } = useBrief();
+  const [contractAddress, setContractAddress] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<TokenAnalysis | null>(null);
+  const { toast } = useToast();
+
+  const handleAnalyze = useCallback(async () => {
+    const trimmed = contractAddress.trim();
+    if (!trimmed || trimmed.length < 30) {
+      toast({ title: "Invalid Address", description: "Enter a valid Solana token contract address.", variant: "destructive" });
+      return;
+    }
+    setAnalyzing(true);
+    setAnalysis(null);
+    try {
+      const res = await apiRequest("POST", "/api/analyze", { mint: trimmed });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Unknown error" }));
+        toast({ title: "Analysis Failed", description: err.message || `Server error (${res.status})`, variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      setAnalysis(data);
+    } catch (e: any) {
+      toast({ title: "Analysis Failed", description: e.message || "Could not analyze token.", variant: "destructive" });
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [contractAddress, toast]);
 
   if (loadingMetrics || loadingLatest || !metrics) {
     return (
@@ -182,6 +225,88 @@ export default function Dashboard() {
              </div>
           </TerminalCard>
         </div>
+
+        {/* Token Analysis Input */}
+        <TerminalCard title="Token Scanner" delay={0.45}>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter Solana token contract address..."
+                value={contractAddress}
+                onChange={(e) => setContractAddress(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !analyzing && handleAnalyze()}
+                className="font-mono text-sm bg-black/30 border-primary/30 text-foreground placeholder:text-muted-foreground/50"
+                data-testid="input-contract-address"
+                disabled={analyzing}
+              />
+              <Button
+                onClick={handleAnalyze}
+                disabled={analyzing || !contractAddress.trim()}
+                className="gap-2 font-mono border-primary/50 text-primary shrink-0"
+                variant="outline"
+                data-testid="button-analyze-token"
+              >
+                {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Scan className="w-4 h-4" />}
+                {analyzing ? "SCANNING..." : "ANALYZE"}
+              </Button>
+            </div>
+
+            {analyzing && (
+              <div className="flex items-center justify-center gap-3 py-6">
+                <div className="w-3 h-3 bg-primary animate-ping rounded-full" />
+                <span className="text-sm font-mono text-primary/70 animate-pulse">
+                  SCANNING TOKEN // FETCHING HOLDER DATA // COMPUTING NCI...
+                </span>
+              </div>
+            )}
+
+            {analysis && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-black/30 border border-primary/20 rounded-sm p-3" data-testid="text-analysis-holders">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Holders</p>
+                    <p className="font-mono text-lg text-primary font-bold">{analysis.holders.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-black/30 border border-cyan-500/20 rounded-sm p-3" data-testid="text-analysis-whales">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Whale Concentration</p>
+                    <p className="font-mono text-lg text-cyan-400 font-bold">{analysis.whaleConcentration}</p>
+                  </div>
+                  <div className="bg-black/30 border border-secondary/20 rounded-sm p-3" data-testid="text-analysis-nci">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">NCI Score</p>
+                    <p className="font-mono text-lg text-secondary font-bold">{analysis.nciRaw}/100</p>
+                  </div>
+                  <div className="bg-black/30 border border-purple-500/20 rounded-sm p-3" data-testid="text-analysis-band">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Band</p>
+                    <p className="font-mono text-sm text-purple-400 font-bold">{analysis.band}</p>
+                  </div>
+                </div>
+
+                <div className="bg-black/30 border border-primary/20 rounded-sm p-3" data-testid="text-analysis-posture">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Operator Posture</p>
+                  <p className="font-mono text-sm text-foreground/80">{analysis.posture}</p>
+                </div>
+
+                {analysis.aiAnalysis && (
+                  <div className="bg-black/30 border border-cyan-500/20 rounded-sm p-3" data-testid="text-analysis-ai">
+                    <p className="text-[10px] text-cyan-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                      BabyAGI-3 Analysis
+                    </p>
+                    <p className="font-mono text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">{analysis.aiAnalysis}</p>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-muted-foreground font-mono text-right">
+                  Scanned at {new Date(analysis.analyzedAt).toLocaleTimeString()}
+                </p>
+              </motion.div>
+            )}
+          </div>
+        </TerminalCard>
 
         {/* Chart Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
