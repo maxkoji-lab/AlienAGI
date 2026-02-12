@@ -125,7 +125,7 @@ export default function Dashboard() {
           backgroundSize: "contain",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          opacity: 0.15,
+          opacity: 0.55,
         }}
       />
       <div className="scanline"></div>
