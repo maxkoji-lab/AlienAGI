@@ -3,6 +3,17 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { format } from "date-fns";
 import { type Metric } from "@shared/schema";
 
+const COLORS = {
+  nciLine: "#00e5ff",
+  emaLine: "#ff00ff",
+  holderLine: "#00ff80",
+  grid: "#3a5a4a",
+  axisText: "#5a8a6a",
+  refCold: "#ff4444",
+  refMid: "#555555",
+  refHot: "#00ff80",
+};
+
 interface NciChartProps {
   data: Metric[];
 }
@@ -65,19 +76,19 @@ export function NciChart({ data }: NciChartProps) {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background/90 border border-primary/50 p-3 rounded-sm shadow-lg backdrop-blur-md">
-          <p className="text-primary font-mono text-xs mb-2 border-b border-primary/20 pb-1">
+          <p className="font-mono text-xs mb-2 border-b border-primary/20 pb-1" style={{ color: COLORS.holderLine }}>
             {format(new Date(label), "HH:mm:ss")}
           </p>
           <div className="space-y-1">
-            <p className="text-secondary text-sm">
+            <p className="text-sm" style={{ color: COLORS.nciLine }}>
               <span className="text-muted-foreground text-xs mr-2">NCI RAW:</span>
               {Number(payload[0]?.value).toFixed(4)}
             </p>
-            <p className="text-accent text-sm">
+            <p className="text-sm" style={{ color: COLORS.emaLine }}>
               <span className="text-muted-foreground text-xs mr-2">NCI EMA:</span>
               {Number(payload[1]?.value).toFixed(4)}
             </p>
-            <p className="text-primary text-sm">
+            <p className="text-sm" style={{ color: COLORS.holderLine }}>
               <span className="text-muted-foreground text-xs mr-2">HOLDERS:</span>
               {payload[2]?.value?.toLocaleString?.() || payload[2]?.value}
             </p>
@@ -103,19 +114,19 @@ export function NciChart({ data }: NciChartProps) {
         <AreaChart data={livePoints}>
           <defs>
             <linearGradient id="colorNci" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--secondary)" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="var(--secondary)" stopOpacity={0}/>
+              <stop offset="5%" stopColor={COLORS.nciLine} stopOpacity={0.35}/>
+              <stop offset="95%" stopColor={COLORS.nciLine} stopOpacity={0}/>
             </linearGradient>
             <linearGradient id="colorEma" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.2}/>
-              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
+              <stop offset="5%" stopColor={COLORS.emaLine} stopOpacity={0.2}/>
+              <stop offset="95%" stopColor={COLORS.emaLine} stopOpacity={0}/>
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--muted-foreground)" opacity={0.1} vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} opacity={0.15} vertical={false} />
           <XAxis
             dataKey="time"
             tickFormatter={(time) => format(new Date(time), "HH:mm:ss")}
-            stroke="var(--muted-foreground)"
+            stroke={COLORS.axisText}
             fontSize={10}
             tickLine={false}
             axisLine={false}
@@ -123,7 +134,7 @@ export function NciChart({ data }: NciChartProps) {
           />
           <YAxis
             yAxisId="left"
-            stroke="var(--secondary)"
+            stroke={COLORS.nciLine}
             fontSize={10}
             tickLine={false}
             axisLine={false}
@@ -133,23 +144,23 @@ export function NciChart({ data }: NciChartProps) {
           <YAxis
             yAxisId="right"
             orientation="right"
-            stroke="var(--primary)"
+            stroke={COLORS.holderLine}
             fontSize={10}
             tickLine={false}
             axisLine={false}
             domain={['auto', 'auto']}
             width={35}
           />
-          <ReferenceLine yAxisId="left" y={25} stroke="var(--destructive)" strokeDasharray="3 3" strokeOpacity={0.3} />
-          <ReferenceLine yAxisId="left" y={50} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.2} />
-          <ReferenceLine yAxisId="left" y={75} stroke="var(--primary)" strokeDasharray="3 3" strokeOpacity={0.3} />
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--primary)', strokeWidth: 1, strokeDasharray: '4 4' }} />
+          <ReferenceLine yAxisId="left" y={25} stroke={COLORS.refCold} strokeDasharray="3 3" strokeOpacity={0.4} />
+          <ReferenceLine yAxisId="left" y={50} stroke={COLORS.refMid} strokeDasharray="3 3" strokeOpacity={0.3} />
+          <ReferenceLine yAxisId="left" y={75} stroke={COLORS.refHot} strokeDasharray="3 3" strokeOpacity={0.4} />
+          <Tooltip content={<CustomTooltip />} cursor={{ stroke: COLORS.holderLine, strokeWidth: 1, strokeDasharray: '4 4' }} />
           <Area
             yAxisId="left"
             type="monotone"
             dataKey="nci"
-            stroke="var(--secondary)"
-            strokeWidth={2}
+            stroke={COLORS.nciLine}
+            strokeWidth={2.5}
             fillOpacity={1}
             fill="url(#colorNci)"
             animationDuration={500}
@@ -159,7 +170,7 @@ export function NciChart({ data }: NciChartProps) {
             yAxisId="left"
             type="monotone"
             dataKey="ema"
-            stroke="var(--accent)"
+            stroke={COLORS.emaLine}
             strokeWidth={2}
             strokeDasharray="4 4"
             fillOpacity={1}

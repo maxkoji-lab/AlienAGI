@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { Pause, Play } from "lucide-react";
 
+const COLORS = {
+  nciLine: "#00e5ff",
+  holderLine: "#ffdd00",
+  grid: "#3a5a4a",
+  axisText: "#5a8a6a",
+  refCold: "#ff4444",
+  refMid: "#555555",
+  refHot: "#00ff80",
+};
+
 interface LiveDataPoint {
   time: number;
   nci: number;
@@ -118,11 +128,11 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
             {format(new Date(label), "HH:mm:ss")}
           </p>
           <div className="space-y-1">
-            <p className="text-secondary text-sm">
+            <p className="text-sm" style={{ color: COLORS.nciLine }}>
               <span className="text-muted-foreground text-xs mr-2">NCI:</span>
               {Number(payload[0]?.value).toFixed(2)}
             </p>
-            <p className="text-primary text-sm">
+            <p className="text-sm" style={{ color: COLORS.holderLine }}>
               <span className="text-muted-foreground text-xs mr-2">HOLDERS:</span>
               {Number(payload[1]?.value).toLocaleString()}
             </p>
@@ -188,15 +198,15 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
           <AreaChart data={points}>
             <defs>
               <linearGradient id="scannerNci" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--secondary)" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="var(--secondary)" stopOpacity={0}/>
+                <stop offset="5%" stopColor={COLORS.nciLine} stopOpacity={0.4}/>
+                <stop offset="95%" stopColor={COLORS.nciLine} stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--muted-foreground)" opacity={0.1} vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} opacity={0.15} vertical={false} />
             <XAxis
               dataKey="time"
               tickFormatter={(time) => format(new Date(time), "HH:mm:ss")}
-              stroke="var(--muted-foreground)"
+              stroke={COLORS.axisText}
               fontSize={10}
               tickLine={false}
               axisLine={false}
@@ -204,7 +214,7 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
             />
             <YAxis
               yAxisId="left"
-              stroke="var(--secondary)"
+              stroke={COLORS.nciLine}
               fontSize={10}
               tickLine={false}
               axisLine={false}
@@ -214,7 +224,7 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
             <YAxis
               yAxisId="right"
               orientation="right"
-              stroke="var(--primary)"
+              stroke={COLORS.holderLine}
               fontSize={10}
               tickLine={false}
               axisLine={false}
@@ -222,16 +232,16 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
               width={50}
               tickFormatter={(v) => v.toLocaleString()}
             />
-            <ReferenceLine yAxisId="left" y={25} stroke="var(--destructive)" strokeDasharray="3 3" strokeOpacity={0.3} label={{ value: "Cold", position: "insideLeft", fontSize: 9, fill: "var(--destructive)" }} />
-            <ReferenceLine yAxisId="left" y={50} stroke="var(--muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.2} />
-            <ReferenceLine yAxisId="left" y={75} stroke="var(--primary)" strokeDasharray="3 3" strokeOpacity={0.3} label={{ value: "Hot", position: "insideLeft", fontSize: 9, fill: "var(--primary)" }} />
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--cyan-400)', strokeWidth: 1, strokeDasharray: '4 4' }} />
+            <ReferenceLine yAxisId="left" y={25} stroke={COLORS.refCold} strokeDasharray="3 3" strokeOpacity={0.4} label={{ value: "Cold", position: "insideLeft", fontSize: 9, fill: COLORS.refCold }} />
+            <ReferenceLine yAxisId="left" y={50} stroke={COLORS.refMid} strokeDasharray="3 3" strokeOpacity={0.3} />
+            <ReferenceLine yAxisId="left" y={75} stroke={COLORS.refHot} strokeDasharray="3 3" strokeOpacity={0.4} label={{ value: "Hot", position: "insideLeft", fontSize: 9, fill: COLORS.refHot }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: COLORS.nciLine, strokeWidth: 1, strokeDasharray: '4 4' }} />
             <Area
               yAxisId="left"
               type="monotone"
               dataKey="nci"
-              stroke="var(--secondary)"
-              strokeWidth={2}
+              stroke={COLORS.nciLine}
+              strokeWidth={2.5}
               fillOpacity={1}
               fill="url(#scannerNci)"
               animationDuration={400}
@@ -241,8 +251,8 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
               yAxisId="right"
               type="monotone"
               dataKey="holders"
-              stroke="var(--primary)"
-              strokeWidth={1.5}
+              stroke={COLORS.holderLine}
+              strokeWidth={2}
               strokeDasharray="4 2"
               fill="none"
               animationDuration={400}
@@ -254,11 +264,11 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
 
       <div className="flex items-center justify-center gap-6 text-[10px] font-mono text-muted-foreground">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-0.5 bg-secondary" />
+          <span className="w-3 h-0.5" style={{ backgroundColor: COLORS.nciLine }} />
           <span>NCI Score (0-100)</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-0.5 bg-primary border-dashed" style={{ borderTop: "1px dashed var(--primary)" }} />
+          <span className="w-3 h-0.5" style={{ backgroundColor: COLORS.holderLine, borderTop: `1px dashed ${COLORS.holderLine}` }} />
           <span>Holder Count</span>
         </div>
         <span className="text-muted-foreground/50">Refresh: 10s</span>
