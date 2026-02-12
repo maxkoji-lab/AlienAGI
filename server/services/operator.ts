@@ -1,7 +1,12 @@
 import { storage } from "../storage";
 
 // Config
-const HELIUS_API_KEY = process.env.HELIUS_API_KEY || "";
+const HELIUS_API_KEY_RAW = process.env.HELIUS_API_KEY || "";
+// Extract key if user pasted full URL
+const HELIUS_API_KEY = HELIUS_API_KEY_RAW.includes("api-key=") 
+  ? HELIUS_API_KEY_RAW.split("api-key=")[1].split("&")[0] 
+  : HELIUS_API_KEY_RAW;
+
 const NOOP_MINT = process.env.NOOP_MINT || "";
 const NOOP_LOOP_SECONDS = parseInt(process.env.NOOP_LOOP_SECONDS || "90");
 const NOOP_WHALE_TOP_N = parseInt(process.env.NOOP_WHALE_TOP_N || "20");
@@ -10,9 +15,7 @@ const NOOP_WHALE_WINDOW_HOURS = parseFloat(process.env.NOOP_WHALE_WINDOW_HOURS |
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const HELIUS_ENHANCED_BASE = "https://api-mainnet.helius-rpc.com/v0";
 
-function clip(x: number, lo: number = 0.0, hi: number = 1.0): number {
-  return Math.max(lo, Math.min(hi, x));
-}
+// ... clip function ...
 
 // Helius Helpers
 async function rpcPost(method: string, params: any): Promise<any> {
@@ -196,6 +199,12 @@ export async function runOperatorLoop() {
     
     if (!API_KEY || !MINT) {
       console.log("Missing HELIUS_API_KEY or NOOP_MINT. Skipping tick.");
+      return;
+    }
+
+    // Skip if mint is placeholder
+    if (MINT === "WAITING_FOR_LAUNCH" || MINT.length < 30) {
+      console.log("NoopCoin Mint not yet live (WAITING_FOR_LAUNCH). Standing by...");
       return;
     }
 
