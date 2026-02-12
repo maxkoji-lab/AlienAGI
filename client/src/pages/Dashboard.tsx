@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -172,7 +172,18 @@ export default function Dashboard() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<TokenAnalysis | null>(null);
   const [scannerLive, setScannerLive] = useState<ScannerLiveData | null>(null);
+  const [briefLive, setBriefLive] = useState<ScannerLiveData | null>(null);
+  const briefThrottleRef = useRef<number>(0);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!scannerLive) return;
+    const now = Date.now();
+    if (now - briefThrottleRef.current >= 10000) {
+      briefThrottleRef.current = now;
+      setBriefLive(scannerLive);
+    }
+  }, [scannerLive]);
 
   const { data: xAlerts = [] } = useQuery<XAlert[]>({
     queryKey: ["/api/x-monitor/alerts", analysis?.mint],
@@ -784,7 +795,7 @@ export default function Dashboard() {
             >
               {analysis ? (
                 <BriefTerminal
-                  content={buildScannerBrief(analysis, scannerLive, xAlerts, monitorStatus)}
+                  content={buildScannerBrief(analysis, briefLive, xAlerts, monitorStatus)}
                   generatedAt={analysis.analyzedAt}
                 />
               ) : loadingBrief ? (
