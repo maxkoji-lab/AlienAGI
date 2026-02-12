@@ -43,7 +43,7 @@ async function rpcPost(method: string, params: any): Promise<any> {
   return data.result;
 }
 
-export async function getHoldersSnapshot(mint: string, minUiAmount: number = 0.0): Promise<{ holders: number, ownerBal: Record<string, number> }> {
+export async function getHoldersSnapshot(mint: string, minUiAmount: number = 0.0, maxPages: number = 0): Promise<{ holders: number, ownerBal: Record<string, number> }> {
   let page = 1;
   const ownerBal: Record<string, number> = {};
 
@@ -55,18 +55,19 @@ export async function getHoldersSnapshot(mint: string, minUiAmount: number = 0.0
       displayOptions: {},
     });
 
-    const accounts = res?.tokenAccounts || [];
+    const accounts = res?.token_accounts || res?.tokenAccounts || [];
     if (!accounts.length) break;
 
     for (const ta of accounts) {
       const owner = ta.owner;
-      const ui = parseFloat(ta.tokenAmount?.uiAmount || "0");
-      if (!owner) continue;
-      ownerBal[owner] = (ownerBal[owner] || 0) + ui;
+      const amt = parseFloat(ta.amount || ta.tokenAmount?.uiAmount || "0");
+      if (!owner || amt <= 0) continue;
+      ownerBal[owner] = (ownerBal[owner] || 0) + amt;
     }
 
     if (accounts.length < 1000) break;
     page++;
+    if (maxPages > 0 && page > maxPages) break;
   }
 
   // Filter dust
