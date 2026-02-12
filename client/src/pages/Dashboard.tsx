@@ -5,6 +5,7 @@ import { NciChart } from "@/components/NciChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const { data: metrics, isLoading: loadingMetrics } = useMetrics();
