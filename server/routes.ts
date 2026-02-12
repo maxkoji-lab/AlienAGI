@@ -163,7 +163,7 @@ export async function registerRoutes(
     }
 
     try {
-      const { holders, ownerBal } = await getHoldersSnapshot(mint);
+      const { holders, ownerBal } = await getHoldersSnapshot(mint, 0, 10);
       const topWhales = Object.entries(ownerBal)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 20);
