@@ -15,7 +15,9 @@ const NOOP_WHALE_WINDOW_HOURS = parseFloat(process.env.NOOP_WHALE_WINDOW_HOURS |
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const HELIUS_ENHANCED_BASE = "https://api-mainnet.helius-rpc.com/v0";
 
-// ... clip function ...
+function clip(x: number, lo = 0, hi = 1): number {
+  return Math.max(lo, Math.min(hi, x));
+}
 
 // Helius Helpers
 async function rpcPost(method: string, params: any): Promise<any> {
