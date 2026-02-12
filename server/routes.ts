@@ -5,6 +5,8 @@ import { api } from "@shared/routes";
 import { runOperatorLoop, buildBrief, bandAndPosture, getHoldersSnapshot, computeNciRaw } from "./services/operator";
 import { insertBuybackSchema, insertBurnSchema, insertRewardCampaignSchema, insertRewardClaimSchema } from "@shared/schema";
 import { z } from "zod";
+import { fetchTokenProfile } from "./services/dexscreener";
+import { startMonitoring, stopMonitoring, getAlerts, clearAlerts, getMonitorStatus } from "./services/xmonitor";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -211,6 +213,8 @@ export async function registerRoutes(
       const nciRaw = computeNciRaw({ holders, holdersDelta24h: 0, whaleNetFlow: 0 });
       const { band, posture } = bandAndPosture(nciRaw);
 
+      const profile = await fetchTokenProfile(mint);
+
       const tokenData = {
         mint,
         holders,
@@ -219,9 +223,37 @@ export async function registerRoutes(
         nciRaw: nciRaw.toFixed(1),
         band,
         posture,
+        profile: profile ? {
+          name: profile.name,
+          symbol: profile.symbol,
+          description: profile.description,
+          imageUrl: profile.imageUrl,
+          priceUsd: profile.priceUsd,
+          marketCap: profile.marketCap,
+          fdv: profile.fdv,
+          volume24h: profile.volume24h,
+          websites: profile.websites,
+          socials: profile.socials,
+          twitterHandle: profile.twitterHandle,
+          telegramUrl: profile.telegramUrl,
+          discordUrl: profile.discordUrl,
+          dexscreenerUrl: profile.dexscreenerUrl,
+        } : null,
       };
 
-      const prompt = `Analyze this Solana token:\nMint: ${mint}\nHolders: ${holders}\nTop 20 whales hold: ${concentrationPct.toFixed(1)}% of supply\nNCI Score: ${nciRaw.toFixed(1)}/100 (${band})\nPosture: ${posture}\n\nProvide a brief, actionable analysis covering: holder distribution health, whale risk, and overall conviction assessment. Keep it concise (under 200 words). Use a direct, analytical tone.`;
+      if (profile) {
+        startMonitoring({
+          mint,
+          symbol: profile.symbol,
+          twitterHandle: profile.twitterHandle,
+        });
+      }
+
+      const profileInfo = profile
+        ? `\nToken Name: ${profile.name} ($${profile.symbol})\nPrice: $${profile.priceUsd || 'N/A'}\nMarket Cap: $${profile.marketCap?.toLocaleString() || 'N/A'}\nLore/Description: ${profile.description || 'None available'}`
+        : '';
+
+      const prompt = `Analyze this Solana token:\nMint: ${mint}${profileInfo}\nHolders: ${holders}\nTop 20 whales hold: ${concentrationPct.toFixed(1)}% of supply\nNCI Score: ${nciRaw.toFixed(1)}/100 (${band})\nPosture: ${posture}\n\nProvide a brief, actionable analysis covering: holder distribution health, whale risk, and overall conviction assessment. Keep it concise (under 200 words). Use a direct, analytical tone.`;
 
       let aiAnalysis: string | null = null;
       try {
@@ -247,6 +279,36 @@ export async function registerRoutes(
     } catch (e: any) {
       console.error("Analyze error:", e);
       res.status(500).json({ message: e.message || "Failed to analyze token" });
+    }
+  });
+
+  app.get("/api/x-monitor/status", (_req, res) => {
+    res.json(getMonitorStatus());
+  });
+
+  app.get("/api/x-monitor/alerts", (req, res) => {
+    const mint = typeof req.query.mint === "string" ? req.query.mint : undefined;
+    res.json(getAlerts(mint));
+  });
+
+  app.post("/api/x-monitor/clear", (req, res) => {
+    const mint = typeof req.body?.mint === "string" ? req.body.mint : undefined;
+    clearAlerts(mint);
+    res.json({ cleared: true });
+  });
+
+  app.post("/api/x-monitor/stop", (_req, res) => {
+    stopMonitoring();
+    res.json({ stopped: true });
+  });
+
+  app.get("/api/token-profile/:mint", async (req, res) => {
+    try {
+      const profile = await fetchTokenProfile(req.params.mint);
+      if (!profile) return res.status(404).json({ message: "Token not found on DexScreener" });
+      res.json(profile);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Failed to fetch token profile" });
     }
   });
 

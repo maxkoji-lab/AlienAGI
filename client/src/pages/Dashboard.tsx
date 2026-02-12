@@ -4,7 +4,7 @@ import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
 import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
-import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan } from "lucide-react";
+import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio } from "lucide-react";
 import alienBg from "@assets/VS_1770881377474.png";
 
 import { motion } from "framer-motion";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { useState, useEffect, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 function useWorldClocks() {
@@ -39,6 +40,35 @@ function useWorldClocks() {
   };
 }
 
+interface TokenProfile {
+  name: string;
+  symbol: string;
+  description: string;
+  imageUrl: string | null;
+  priceUsd: string | null;
+  marketCap: number | null;
+  fdv: number | null;
+  volume24h: number | null;
+  websites: { url: string; label?: string }[];
+  socials: { url: string; type: string }[];
+  twitterHandle: string | null;
+  telegramUrl: string | null;
+  discordUrl: string | null;
+  dexscreenerUrl: string | null;
+}
+
+interface XAlert {
+  id: string;
+  username: string;
+  displayName: string;
+  followers: number;
+  tweetText: string;
+  tweetUrl: string;
+  detectedAt: string;
+  tokenMint: string;
+  tokenSymbol: string;
+}
+
 interface TokenAnalysis {
   mint: string;
   holders: number;
@@ -49,6 +79,7 @@ interface TokenAnalysis {
   posture: string;
   aiAnalysis: string | null;
   analyzedAt: string;
+  profile: TokenProfile | null;
 }
 
 export default function Dashboard() {
@@ -62,6 +93,24 @@ export default function Dashboard() {
   const [analysis, setAnalysis] = useState<TokenAnalysis | null>(null);
   const [scannerLive, setScannerLive] = useState<ScannerLiveData | null>(null);
   const { toast } = useToast();
+
+  const { data: xAlerts = [] } = useQuery<XAlert[]>({
+    queryKey: ["/api/x-monitor/alerts", analysis?.mint],
+    queryFn: async () => {
+      if (!analysis) return [];
+      const res = await fetch(`/api/x-monitor/alerts?mint=${analysis.mint}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!analysis,
+    refetchInterval: 30000,
+  });
+
+  const { data: monitorStatus } = useQuery<{ active: boolean; token: { mint: string; symbol: string } | null; alertCount: number }>({
+    queryKey: ["/api/x-monitor/status"],
+    enabled: !!analysis,
+    refetchInterval: 30000,
+  });
 
   const handleLiveUpdate = useCallback((data: ScannerLiveData) => {
     setScannerLive(data);
@@ -333,6 +382,106 @@ export default function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
               >
+                {analysis.profile && (
+                  <div className="bg-black/40 border border-cyan-500/30 rounded-sm p-4" data-testid="section-token-profile">
+                    <div className="flex items-start gap-4">
+                      {analysis.profile.imageUrl && (
+                        <img
+                          src={analysis.profile.imageUrl}
+                          alt={analysis.profile.name}
+                          className="w-12 h-12 rounded-sm border border-cyan-500/30 shrink-0"
+                          data-testid="img-token-logo"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display text-lg text-cyan-400 tracking-wide" data-testid="text-token-name">
+                            {analysis.profile.name}
+                          </h3>
+                          <span className="font-mono text-sm text-primary/80" data-testid="text-token-symbol">
+                            ${analysis.profile.symbol}
+                          </span>
+                          {analysis.profile.priceUsd && (
+                            <span className="font-mono text-sm text-foreground/70 ml-auto" data-testid="text-token-price">
+                              ${parseFloat(analysis.profile.priceUsd) < 0.01 ? parseFloat(analysis.profile.priceUsd).toExponential(2) : parseFloat(analysis.profile.priceUsd).toFixed(4)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          {analysis.profile.marketCap && (
+                            <span className="text-[10px] font-mono text-muted-foreground" data-testid="text-token-mcap">
+                              MCAP: ${analysis.profile.marketCap >= 1e6 ? (analysis.profile.marketCap / 1e6).toFixed(1) + "M" : analysis.profile.marketCap.toLocaleString()}
+                            </span>
+                          )}
+                          {analysis.profile.volume24h && (
+                            <span className="text-[10px] font-mono text-muted-foreground" data-testid="text-token-volume">
+                              VOL24H: ${analysis.profile.volume24h >= 1e6 ? (analysis.profile.volume24h / 1e6).toFixed(1) + "M" : analysis.profile.volume24h.toLocaleString()}
+                            </span>
+                          )}
+                          {analysis.profile.fdv && (
+                            <span className="text-[10px] font-mono text-muted-foreground" data-testid="text-token-fdv">
+                              FDV: ${analysis.profile.fdv >= 1e6 ? (analysis.profile.fdv / 1e6).toFixed(1) + "M" : analysis.profile.fdv.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {analysis.profile.description && (
+                      <div className="mt-3 border-t border-cyan-500/10 pt-3" data-testid="section-token-lore">
+                        <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest mb-1">Lore / Description</p>
+                        <p className="font-mono text-xs text-foreground/70 leading-relaxed">{analysis.profile.description}</p>
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex items-center gap-2 flex-wrap" data-testid="section-token-links">
+                      {analysis.profile.websites.map((w, i) => (
+                        <a key={i} href={w.url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          data-testid={`link-website-${i}`}
+                        >
+                          <Globe className="w-3 h-3" />
+                          {w.label || "Website"}
+                        </a>
+                      ))}
+                      {analysis.profile.twitterHandle && (
+                        <a href={`https://x.com/${analysis.profile.twitterHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          data-testid="link-twitter"
+                        >
+                          <span className="font-bold">X</span>
+                          {analysis.profile.twitterHandle}
+                        </a>
+                      )}
+                      {analysis.profile.telegramUrl && (
+                        <a href={analysis.profile.telegramUrl} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          data-testid="link-telegram"
+                        >
+                          Telegram
+                        </a>
+                      )}
+                      {analysis.profile.discordUrl && (
+                        <a href={analysis.profile.discordUrl} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          data-testid="link-discord"
+                        >
+                          Discord
+                        </a>
+                      )}
+                      {analysis.profile.dexscreenerUrl && (
+                        <a href={analysis.profile.dexscreenerUrl} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          data-testid="link-dexscreener"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          DexScreener
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-black/30 border border-primary/20 rounded-sm p-3" data-testid="text-analysis-holders">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Holders</p>
@@ -367,9 +516,52 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                <p className="text-[10px] text-muted-foreground font-mono text-right">
-                  Scanned at {new Date(analysis.analyzedAt).toLocaleTimeString()}
-                </p>
+                {xAlerts.length > 0 && (
+                  <div className="bg-black/40 border border-yellow-500/30 rounded-sm p-3" data-testid="section-x-alerts">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Bell className="w-4 h-4 text-yellow-400 animate-pulse" />
+                      <p className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold">
+                        Influencer Alerts ({xAlerts.length})
+                      </p>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {xAlerts.map((alert) => (
+                        <a
+                          key={alert.id}
+                          href={alert.tweetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block bg-black/30 border border-yellow-500/10 rounded-sm p-2 transition-colors hover:border-yellow-500/30"
+                          data-testid={`alert-${alert.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-yellow-400 font-bold">@{alert.username}</span>
+                            <span className="text-[9px] text-muted-foreground">{alert.followers.toLocaleString()} followers</span>
+                            <ExternalLink className="w-3 h-3 text-muted-foreground ml-auto" />
+                          </div>
+                          <p className="font-mono text-[11px] text-foreground/70 mt-1 line-clamp-2">{alert.tweetText}</p>
+                          <p className="text-[9px] text-muted-foreground mt-1">{new Date(alert.detectedAt).toLocaleTimeString()}</p>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Radio className={cn("w-3 h-3", monitorStatus?.active ? "text-cyan-400 animate-pulse" : "text-muted-foreground")} />
+                    <span className="text-[10px] font-mono text-cyan-400/70">
+                      X MONITOR: {monitorStatus?.active
+                        ? `TRACKING $${monitorStatus.token?.symbol || analysis.profile?.symbol || "?"} (${monitorStatus.alertCount} alerts)`
+                        : analysis.profile?.twitterHandle
+                          ? "STARTING..."
+                          : "NO TWITTER DETECTED"}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    Scanned at {new Date(analysis.analyzedAt).toLocaleTimeString()}
+                  </p>
+                </div>
 
                 <div className="border-t border-cyan-500/20 pt-4 mt-4">
                   <div className="flex items-center gap-2 mb-2">
