@@ -151,6 +151,42 @@ export async function registerRoutes(
     res.status(201).json(claim);
   });
 
+  app.post("/api/analyze/live", async (req, res) => {
+    const schema = z.object({ mint: z.string().min(30).max(50) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid contract address" });
+
+    const { mint } = parsed.data;
+
+    if (!process.env.HELIUS_API_KEY) {
+      return res.status(503).json({ message: "Helius API key not configured" });
+    }
+
+    try {
+      const { holders, ownerBal } = await getHoldersSnapshot(mint, 0, 3);
+      const topWhales = Object.entries(ownerBal)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 20);
+      const totalSupplyHeld = Object.values(ownerBal).reduce((a, b) => a + b, 0);
+      const whaleConcentration = topWhales.reduce((a, [, b]) => a + b, 0);
+      const concentrationPct = totalSupplyHeld > 0 ? (whaleConcentration / totalSupplyHeld) * 100 : 0;
+      const nciRaw = computeNciRaw({ holders, holdersDelta24h: 0, whaleNetFlow: 0 });
+      const { band, posture } = bandAndPosture(nciRaw);
+
+      res.json({
+        holders,
+        whaleConcentration: concentrationPct.toFixed(2),
+        nciRaw: parseFloat(nciRaw.toFixed(2)),
+        band,
+        posture,
+        ts: Date.now(),
+      });
+    } catch (e: any) {
+      console.error("Live analyze error:", e);
+      res.status(500).json({ message: e.message || "Failed to analyze token" });
+    }
+  });
+
   app.post(api.analyze.path, async (req, res) => {
     const schema = z.object({ mint: z.string().min(30).max(50) });
     const parsed = schema.safeParse(req.body);
