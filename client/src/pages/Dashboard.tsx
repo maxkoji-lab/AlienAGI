@@ -771,7 +771,7 @@ export default function Dashboard() {
         {/* Chart Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <TerminalCard title="Trade" className="h-full min-h-[400px]" delay={0.5}>
+            <TerminalCard title="Adaptive Learning, Intelligence Engine Network (A.L.I.E.N)" className="h-full min-h-[400px]" delay={0.5}>
               <div className="h-full flex items-center justify-center">
                 <span className="text-xs font-mono text-muted-foreground/50 uppercase tracking-widest">Coming Soon</span>
               </div>
