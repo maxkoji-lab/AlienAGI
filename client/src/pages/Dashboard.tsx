@@ -2,6 +2,7 @@ import { useMetrics, useLatestMetric, useBrief } from "@/hooks/use-metrics";
 import { TerminalCard } from "@/components/TerminalCard";
 import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
+import { ScannerChart } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan } from "lucide-react";
 import alienBg from "@assets/VS_1770881377474.png";
@@ -314,6 +315,20 @@ export default function Dashboard() {
                 <p className="text-[10px] text-muted-foreground font-mono text-right">
                   Scanned at {new Date(analysis.analyzedAt).toLocaleTimeString()}
                 </p>
+
+                <div className="border-t border-cyan-500/20 pt-4 mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-widest">Live NCI Monitor</span>
+                    <span className="text-[10px] font-mono text-muted-foreground ml-auto">Token: {analysis.mint.slice(0, 8)}...{analysis.mint.slice(-6)}</span>
+                  </div>
+                  <ScannerChart
+                    mint={analysis.mint}
+                    initialNci={parseFloat(analysis.nciRaw)}
+                    initialHolders={analysis.holders}
+                    initialWhaleConcentration={parseFloat(analysis.whaleConcentration)}
+                  />
+                </div>
               </motion.div>
             )}
           </div>
