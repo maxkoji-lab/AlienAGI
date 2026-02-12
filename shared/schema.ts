@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -19,10 +19,62 @@ export const whaleState = pgTable("whale_state", {
   lastSig: text("last_sig"),
 });
 
+export const buybacks = pgTable("buybacks", {
+  id: serial("id").primaryKey(),
+  ts: timestamp("ts").defaultNow(),
+  amountSol: real("amount_sol").notNull(),
+  amountTokens: real("amount_tokens").notNull(),
+  txSignature: text("tx_signature"),
+  status: text("status").notNull().default("proposed"),
+});
+
+export const burns = pgTable("burns", {
+  id: serial("id").primaryKey(),
+  ts: timestamp("ts").defaultNow(),
+  amountTokens: real("amount_tokens").notNull(),
+  txSignature: text("tx_signature"),
+  source: text("source").notNull().default("buyback"),
+  status: text("status").notNull().default("proposed"),
+});
+
+export const rewardCampaigns = pgTable("reward_campaigns", {
+  id: serial("id").primaryKey(),
+  ts: timestamp("ts").defaultNow(),
+  name: text("name").notNull(),
+  minHoldingUsd: real("min_holding_usd").notNull().default(10),
+  rewardUsd: real("reward_usd").notNull().default(0.2),
+  totalBudgetUsd: real("total_budget_usd").notNull(),
+  claimedCount: integer("claimed_count").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+});
+
+export const rewardClaims = pgTable("reward_claims", {
+  id: serial("id").primaryKey(),
+  ts: timestamp("ts").defaultNow(),
+  campaignId: integer("campaign_id").notNull(),
+  walletAddress: text("wallet_address").notNull(),
+  holdingUsd: real("holding_usd").notNull(),
+  rewardUsd: real("reward_usd").notNull(),
+  txSignature: text("tx_signature"),
+  status: text("status").notNull().default("pending"),
+});
+
 export const insertMetricSchema = createInsertSchema(metrics).omit({ id: true, ts: true });
 export const insertWhaleStateSchema = createInsertSchema(whaleState);
+export const insertBuybackSchema = createInsertSchema(buybacks).omit({ id: true, ts: true });
+export const insertBurnSchema = createInsertSchema(burns).omit({ id: true, ts: true });
+export const insertRewardCampaignSchema = createInsertSchema(rewardCampaigns).omit({ id: true, ts: true, claimedCount: true });
+export const insertRewardClaimSchema = createInsertSchema(rewardClaims).omit({ id: true, ts: true });
 
 export type Metric = typeof metrics.$inferSelect;
 export type InsertMetric = z.infer<typeof insertMetricSchema>;
 export type WhaleState = typeof whaleState.$inferSelect;
 export type InsertWhaleState = z.infer<typeof insertWhaleStateSchema>;
+export type Buyback = typeof buybacks.$inferSelect;
+export type InsertBuyback = z.infer<typeof insertBuybackSchema>;
+export type Burn = typeof burns.$inferSelect;
+export type InsertBurn = z.infer<typeof insertBurnSchema>;
+export type RewardCampaign = typeof rewardCampaigns.$inferSelect;
+export type InsertRewardCampaign = z.infer<typeof insertRewardCampaignSchema>;
+export type RewardClaim = typeof rewardClaims.$inferSelect;
+export type InsertRewardClaim = z.infer<typeof insertRewardClaimSchema>;
