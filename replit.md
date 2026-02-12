@@ -4,6 +4,9 @@
 ALIENAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
 
 ## Recent Changes
+- 2026-02-12: Added DexScreener token profile integration — fetches name, ticker, description/lore, social links, price, market cap from DexScreener API (no key required)
+- 2026-02-12: Added X/Twitter influencer monitoring loop — background service checks for mentions from accounts with >10k followers, stores alerts (requires X_BEARER_TOKEN)
+- 2026-02-12: Token Scanner now shows full token profile card with logo, links, and lore from DexScreener
 - 2026-02-12: Added Token Scanner — users can input any Solana contract address to get holder analysis, whale concentration, NCI score, and optional BabyAGI-3 AI analysis
 - 2026-02-12: Added Treasury system (buybacks, burns, reward campaigns) with full CRUD API and cyberpunk-themed Treasury page
 - 2026-02-12: Renamed project from "NoopCoin" to "ALIENAGI" across all components
@@ -30,6 +33,8 @@ ALIENAGI is a fullstack Solana token metrics tracking application with an integr
   - `server/routes.ts` - API routes
   - `server/storage.ts` - Database storage interface
   - `server/services/operator.ts` - Helius RPC integration, NCI calculation, operator loop
+  - `server/services/dexscreener.ts` - DexScreener API integration for token metadata (no key required)
+  - `server/services/xmonitor.ts` - X/Twitter influencer monitoring loop and alert system
   - `shared/schema.ts` - Database schema and types
 
 ### BabyAGI 3 Agent (babyagi3/ directory, Port 3001)
