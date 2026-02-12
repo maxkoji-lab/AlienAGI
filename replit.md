@@ -4,6 +4,7 @@
 ALIENAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
 
 ## Recent Changes
+- 2026-02-12: Added Treasury system (buybacks, burns, reward campaigns) with full CRUD API and cyberpunk-themed Treasury page
 - 2026-02-12: Renamed project from "NoopCoin" to "ALIENAGI" across all components
 - 2026-02-12: Imported BabyAGI 3 AI agent framework from GitHub (yoheinakajima/babyagi3)
 - 2026-02-12: Configured BabyAGI 3 to use port 3001 to avoid conflict with dashboard on port 5000
@@ -13,10 +14,14 @@ ALIENAGI is a fullstack Solana token metrics tracking application with an integr
 ### Frontend (Port 5000)
 - **Stack:** React + Vite + TypeScript + TailwindCSS + shadcn/ui
 - **Theme:** Cyberpunk terminal aesthetic with neon green/cyan accents
-- **Key Pages:** `client/src/pages/Dashboard.tsx` - Main metrics dashboard
+- **Key Pages:**
+  - `client/src/pages/Dashboard.tsx` - Main metrics dashboard
+  - `client/src/pages/Treasury.tsx` - Treasury operations (buybacks, burns, rewards)
 - **Key Components:**
   - `client/src/components/BriefTerminal.tsx` - Operator brief display
   - `client/src/components/NciChart.tsx` - NCI chart visualization
+- **Key Hooks:**
+  - `client/src/hooks/use-treasury.ts` - Treasury data queries and mutations
 
 ### Backend (Port 5000 - same Express server)
 - **Stack:** Express + TypeScript + Drizzle ORM + PostgreSQL
