@@ -772,8 +772,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <TerminalCard title="Adaptive Learning, Intelligence Engine Network (A.L.I.E.N)" className="h-full min-h-[400px]" delay={0.5}>
-              <div className="h-full flex items-center justify-center">
-                <span className="text-xs font-mono text-muted-foreground/50 uppercase tracking-widest">Coming Soon</span>
+              <div className="h-full flex flex-col items-center justify-center gap-2">
+                <span className="text-xs font-mono text-muted-foreground/50 uppercase tracking-widest">Trade with us! Coming soon</span>
+                <span className="text-[10px] font-mono text-muted-foreground/30 tracking-wider">Alienlovesyou</span>
               </div>
             </TerminalCard>
           </div>
