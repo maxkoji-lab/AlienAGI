@@ -4,6 +4,7 @@
 ALIENAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
 
 ## Recent Changes
+- 2026-02-12: Added Token Scanner — users can input any Solana contract address to get holder analysis, whale concentration, NCI score, and optional BabyAGI-3 AI analysis
 - 2026-02-12: Added Treasury system (buybacks, burns, reward campaigns) with full CRUD API and cyberpunk-themed Treasury page
 - 2026-02-12: Renamed project from "NoopCoin" to "ALIENAGI" across all components
 - 2026-02-12: Imported BabyAGI 3 AI agent framework from GitHub (yoheinakajima/babyagi3)
