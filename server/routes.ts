@@ -191,7 +191,7 @@ export async function registerRoutes(
     if (cached) cached.fetching = true;
 
     try {
-      const { holders, ownerBal } = await getHoldersSnapshot(mint, 0, 3);
+      const { holders, ownerBal } = await getHoldersSnapshot(mint, 0, 50);
       const topWhales = Object.entries(ownerBal)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 20);
@@ -235,7 +235,7 @@ export async function registerRoutes(
     }
 
     try {
-      const { holders, ownerBal } = await getHoldersSnapshot(mint, 0, 10);
+      const { holders, ownerBal } = await getHoldersSnapshot(mint, 0, 50);
       const topWhales = Object.entries(ownerBal)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 20);
