@@ -235,6 +235,7 @@ export async function registerRoutes(
           websites: profile.websites,
           socials: profile.socials,
           twitterHandle: profile.twitterHandle,
+          twitterUrl: profile.twitterUrl,
           telegramUrl: profile.telegramUrl,
           discordUrl: profile.discordUrl,
           dexscreenerUrl: profile.dexscreenerUrl,
