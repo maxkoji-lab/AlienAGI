@@ -161,7 +161,7 @@ export function buildBrief(mint: string, holders: number, holdersDelta24h: numbe
   const direction = whaleFlow > 0 ? "NET BUY" : (whaleFlow < 0 ? "NET SELL" : "FLAT");
   const dateStr = new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }); // Matches SGT from original
 
-  return `# NOOP Brief — ${dateStr}
+  return `# ALIENAGI Brief — ${dateStr}
 
 **Mint:** \`${mint}\`
 
@@ -176,13 +176,13 @@ export function buildBrief(mint: string, holders: number, holdersDelta24h: numbe
 ## Whale Watch (${whaleTopN} whales, ${whaleWindowHours}h window)
 - **Whale net token flow:** ${whaleFlow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${direction})
 
-## Today’s NOOP Moves
+## Today’s ALIENAGI Moves
 - Ship 1 meme + 1 short lore drop (<=120 words).
 - Run a 10-minute raid window (funny, not spammy).
 - Recruit 3 creators (memes / clips / edits).
 
 ## Raid Lines (copy-paste)
-- NOOP doesn’t promise utility. It *becomes* the utility. 🧠
+- ALIENAGI doesn’t promise utility. It *becomes* the utility. 🧠
 - If you’re reading this, you’re early. If you’re coping, you’re family.
 - Conviction isn’t a tweet. It’s showing up again tomorrow.
 `;
@@ -190,7 +190,7 @@ export function buildBrief(mint: string, holders: number, holdersDelta24h: numbe
 
 // Main Loop
 export async function runOperatorLoop() {
-  console.log("Starting NOOP Operator Loop...");
+  console.log("Starting ALIENAGI Operator Loop...");
   
   const tick = async () => {
     // Refresh env vars
@@ -204,7 +204,7 @@ export async function runOperatorLoop() {
 
     // Skip if mint is placeholder
     if (MINT === "WAITING_FOR_LAUNCH" || MINT.length < 30) {
-      console.log("NoopCoin Mint not yet live (WAITING_FOR_LAUNCH). Standing by...");
+      console.log("ALIENAGI Mint not yet live (WAITING_FOR_LAUNCH). Standing by...");
       return;
     }
 
