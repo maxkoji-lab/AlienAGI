@@ -4,7 +4,7 @@ import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
 import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
-import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio } from "lucide-react";
+import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio, Power, PowerOff } from "lucide-react";
 import alienBg from "@assets/VS_1770881377474.png";
 
 import { motion } from "framer-motion";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { useState, useEffect, useCallback } from "react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -149,7 +149,8 @@ Whale Concentration (Top 20): ${whaleConc}
   }
 
   if (monitor) {
-    brief += `\n## X Monitor\nStatus: ${monitor.active ? "ACTIVE" : "INACTIVE"}\n`;
+    const monitoringThis = monitor.active && monitor.token?.mint === analysis.mint;
+    brief += `\n## X Monitor\nStatus: ${monitoringThis ? "ACTIVE — tracking this token" : monitor.active ? `ACTIVE — tracking $${monitor.token?.symbol || "other"} (different token)` : "INACTIVE"}\n`;
   }
 
   if (analysis.aiAnalysis) {
@@ -180,18 +181,47 @@ export default function Dashboard() {
       return res.json();
     },
     enabled: !!analysis,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   const { data: monitorStatus } = useQuery<{ active: boolean; token: { mint: string; symbol: string } | null; alertCount: number }>({
     queryKey: ["/api/x-monitor/status"],
     enabled: !!analysis,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   const handleLiveUpdate = useCallback((data: ScannerLiveData) => {
     setScannerLive(data);
   }, []);
+
+  const isMonitoringThisToken = !!(monitorStatus?.active && monitorStatus.token?.mint === analysis?.mint);
+
+  const handleToggleMonitor = useCallback(async () => {
+    if (!analysis) return;
+    try {
+      if (isMonitoringThisToken) {
+        await apiRequest("POST", "/api/x-monitor/stop");
+      } else {
+        await apiRequest("POST", "/api/x-monitor/start", {
+          mint: analysis.mint,
+          symbol: analysis.profile?.symbol || undefined,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/x-monitor/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/x-monitor/alerts", analysis.mint] });
+    } catch {
+    }
+  }, [analysis, isMonitoringThisToken]);
+
+  const handleClearAlerts = useCallback(async () => {
+    if (!analysis) return;
+    try {
+      await apiRequest("POST", "/api/x-monitor/clear", { mint: analysis.mint });
+      queryClient.invalidateQueries({ queryKey: ["/api/x-monitor/alerts", analysis.mint] });
+      queryClient.invalidateQueries({ queryKey: ["/api/x-monitor/status"] });
+    } catch {
+    }
+  }, [analysis]);
 
   const handleAnalyze = useCallback(async () => {
     const trimmed = contractAddress.trim();
@@ -220,6 +250,8 @@ export default function Dashboard() {
         prevNci: parseFloat(data.nciRaw),
         prevHolders: data.holders,
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/x-monitor/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/x-monitor/alerts", trimmed] });
     } catch (e: any) {
       toast({ title: "Analysis Failed", description: e.message || "Could not analyze token.", variant: "destructive" });
     } finally {
@@ -593,48 +625,112 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {xAlerts.length > 0 && (
-                  <div className="bg-black/40 border border-yellow-500/30 rounded-sm p-3" data-testid="section-x-alerts">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Bell className="w-4 h-4 text-yellow-400 animate-pulse" />
-                      <p className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold">
-                        Influencer Alerts ({xAlerts.length})
+                <div className="bg-black/40 border border-cyan-500/30 rounded-sm p-3" data-testid="section-x-monitor">
+                  <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Radio className={cn("w-4 h-4", isMonitoringThisToken ? "text-cyan-400 animate-pulse" : "text-muted-foreground")} />
+                      <p className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold">
+                        X Monitor {isMonitoringThisToken ? "ACTIVE" : "INACTIVE"}
                       </p>
                     </div>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {xAlerts.map((alert) => (
-                        <a
-                          key={alert.id}
-                          href={alert.tweetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block bg-black/30 border border-yellow-500/10 rounded-sm p-2 transition-colors hover:border-yellow-500/30"
-                          data-testid={`alert-${alert.id}`}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant={isMonitoringThisToken ? "destructive" : "default"}
+                        className="h-6 text-[10px] font-mono px-2"
+                        onClick={handleToggleMonitor}
+                        data-testid="button-toggle-monitor"
+                      >
+                        {isMonitoringThisToken ? (
+                          <><PowerOff className="w-3 h-3 mr-1" /> STOP</>
+                        ) : (
+                          <><Power className="w-3 h-3 mr-1" /> START</>
+                        )}
+                      </Button>
+                      {xAlerts.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] font-mono px-2"
+                          onClick={handleClearAlerts}
+                          data-testid="button-clear-alerts"
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-yellow-400 font-bold">@{alert.username}</span>
-                            <span className="text-[9px] text-muted-foreground">{alert.followers.toLocaleString()} followers</span>
-                            <ExternalLink className="w-3 h-3 text-muted-foreground ml-auto" />
-                          </div>
-                          <p className="font-mono text-[11px] text-foreground/70 mt-1 line-clamp-2">{alert.tweetText}</p>
-                          <p className="text-[9px] text-muted-foreground mt-1">{new Date(alert.detectedAt).toLocaleTimeString()}</p>
-                        </a>
-                      ))}
+                          CLEAR
+                        </Button>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {monitorStatus?.active && !isMonitoringThisToken && (
+                    <div className="bg-black/30 border border-yellow-500/20 rounded-sm p-2 mb-3">
+                      <p className="text-[10px] font-mono text-yellow-400/80">
+                        Another token is being monitored: <span className="text-yellow-300">${monitorStatus.token?.symbol || "?"}</span>
+                      </p>
+                      <p className="text-[9px] font-mono text-muted-foreground mt-1">
+                        Click START to switch monitoring to this token
+                      </p>
+                    </div>
+                  )}
+
+                  {isMonitoringThisToken && (
+                    <div className="bg-black/30 border border-cyan-500/10 rounded-sm p-2 mb-3">
+                      <p className="text-[10px] font-mono text-cyan-400/80">
+                        Tracking: <span className="text-cyan-300">${analysis.profile?.symbol || monitorStatus?.token?.symbol || "?"}</span>
+                        <span className="text-muted-foreground ml-2">({monitorStatus?.alertCount || 0} alerts detected)</span>
+                      </p>
+                      <p className="text-[9px] font-mono text-muted-foreground mt-1">
+                        Searching X for mentions of token symbol, ticker, and contract address every 60s
+                      </p>
+                    </div>
+                  )}
+
+                  {!monitorStatus?.active && (
+                    <div className="bg-black/30 border border-primary/10 rounded-sm p-2 mb-3">
+                      <p className="text-[9px] font-mono text-muted-foreground">
+                        X monitoring is inactive. Click START to track influencer mentions of this token on X/Twitter.
+                      </p>
+                    </div>
+                  )}
+
+                  {xAlerts.length > 0 ? (
+                    <div data-testid="section-x-alerts">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Bell className="w-3 h-3 text-yellow-400 animate-pulse" />
+                        <p className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold">
+                          Influencer Alerts ({xAlerts.length})
+                        </p>
+                        <span className="text-[9px] text-muted-foreground ml-auto font-mono">Live feed (15s refresh)</span>
+                      </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {xAlerts.map((alert) => (
+                          <a
+                            key={alert.id}
+                            href={alert.tweetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block bg-black/30 border border-yellow-500/10 rounded-sm p-2 transition-colors hover:border-yellow-500/30"
+                            data-testid={`alert-${alert.id}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-yellow-400 font-bold">@{alert.username}</span>
+                              <span className="text-[9px] text-muted-foreground">{alert.followers.toLocaleString()} followers</span>
+                              <ExternalLink className="w-3 h-3 text-muted-foreground ml-auto" />
+                            </div>
+                            <p className="font-mono text-[11px] text-foreground/70 mt-1 line-clamp-2">{alert.tweetText}</p>
+                            <p className="text-[9px] text-muted-foreground mt-1">{new Date(alert.detectedAt).toLocaleTimeString()}</p>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : isMonitoringThisToken ? (
+                    <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span className="text-[10px] font-mono">Listening for influencer mentions...</span>
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Radio className={cn("w-3 h-3", monitorStatus?.active ? "text-cyan-400 animate-pulse" : "text-muted-foreground")} />
-                    <span className="text-[10px] font-mono text-cyan-400/70">
-                      X MONITOR: {monitorStatus?.active
-                        ? `TRACKING $${monitorStatus.token?.symbol || analysis.profile?.symbol || "?"} (${monitorStatus.alertCount} alerts)`
-                        : analysis.profile?.twitterHandle
-                          ? "STARTING..."
-                          : "NO TWITTER DETECTED"}
-                    </span>
-                  </div>
                   <p className="text-[10px] text-muted-foreground font-mono">
                     Scanned at {new Date(analysis.analyzedAt).toLocaleTimeString()}
                   </p>
