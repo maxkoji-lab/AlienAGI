@@ -297,6 +297,37 @@ export async function registerRoutes(
     res.json({ cleared: true });
   });
 
+  app.post("/api/x-monitor/start", async (req, res) => {
+    const schema = z.object({
+      mint: z.string().min(30).max(50),
+      symbol: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+
+    const { mint, symbol: providedSymbol } = parsed.data;
+
+    let symbol = providedSymbol || "";
+    let twitterHandle: string | null = null;
+
+    if (!symbol) {
+      try {
+        const profile = await fetchTokenProfile(mint);
+        if (profile) {
+          symbol = profile.symbol;
+          twitterHandle = profile.twitterHandle;
+        }
+      } catch {}
+    }
+
+    if (!symbol) {
+      symbol = mint.slice(0, 8);
+    }
+
+    startMonitoring({ mint, symbol, twitterHandle });
+    res.json({ started: true, monitoring: { mint, symbol, twitterHandle } });
+  });
+
   app.post("/api/x-monitor/stop", (_req, res) => {
     stopMonitoring();
     res.json({ stopped: true });
