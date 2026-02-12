@@ -3,6 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { runOperatorLoop, buildBrief, bandAndPosture } from "./services/operator";
+import { insertBuybackSchema, insertBurnSchema, insertRewardCampaignSchema, insertRewardClaimSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -10,13 +11,11 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  // Start the background operator loop
-  // We run this without awaiting so it doesn't block server startup
   runOperatorLoop().catch(console.error);
 
   app.get(api.metrics.list.path, async (req, res) => {
     const mint = process.env.NOOP_MINT;
-    if (!mint) return res.json([]); // Or 500
+    if (!mint) return res.json([]);
     const metrics = await storage.getMetricsHistory(mint);
     res.json(metrics);
   });
@@ -37,15 +36,11 @@ export async function registerRoutes(
       return res.json({ brief: "No data yet. Operator initializing...", generatedAt: new Date().toISOString() });
     }
 
-    // Get 24h delta
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const metric24h = await storage.getMetricAtOrBefore(mint, oneDayAgo);
     const holdersDelta = metric24h ? metric.holders - metric24h.holders : 0;
 
     const { band, posture } = bandAndPosture(metric.nciEma);
-    
-    // We assume the stored flow is what we want for the brief (last tick's flow)
-    // The Python script re-calculated or used the metric. The metric stores 'whaleNetFlow'.
     
     const brief = buildBrief(
       mint,
@@ -63,6 +58,97 @@ export async function registerRoutes(
       brief,
       generatedAt: metric.ts ? new Date(metric.ts).toISOString() : new Date().toISOString()
     });
+  });
+
+  app.get(api.treasury.stats.path, async (_req, res) => {
+    const stats = await storage.getTreasuryStats();
+    res.json(stats);
+  });
+
+  app.get(api.treasury.buybacks.list.path, async (_req, res) => {
+    const list = await storage.getBuybacks();
+    res.json(list);
+  });
+
+  app.post(api.treasury.buybacks.create.path, async (req, res) => {
+    const parsed = insertBuybackSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const buyback = await storage.insertBuyback(parsed.data);
+    res.status(201).json(buyback);
+  });
+
+  app.patch("/api/treasury/buybacks/:id/status", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { status, txSignature } = req.body;
+    if (!status) return res.status(400).json({ message: "status required" });
+    const updated = await storage.updateBuybackStatus(id, status, txSignature);
+    if (!updated) return res.status(404).json({ message: "Buyback not found" });
+    res.json(updated);
+  });
+
+  app.get(api.treasury.burns.list.path, async (_req, res) => {
+    const list = await storage.getBurns();
+    res.json(list);
+  });
+
+  app.post(api.treasury.burns.create.path, async (req, res) => {
+    const parsed = insertBurnSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const burn = await storage.insertBurn(parsed.data);
+    res.status(201).json(burn);
+  });
+
+  app.patch("/api/treasury/burns/:id/status", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { status, txSignature } = req.body;
+    if (!status) return res.status(400).json({ message: "status required" });
+    const updated = await storage.updateBurnStatus(id, status, txSignature);
+    if (!updated) return res.status(404).json({ message: "Burn not found" });
+    res.json(updated);
+  });
+
+  app.get(api.treasury.campaigns.list.path, async (_req, res) => {
+    const list = await storage.getRewardCampaigns();
+    res.json(list);
+  });
+
+  app.post(api.treasury.campaigns.create.path, async (req, res) => {
+    const parsed = insertRewardCampaignSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const campaign = await storage.insertRewardCampaign(parsed.data);
+    res.status(201).json(campaign);
+  });
+
+  app.patch("/api/treasury/campaigns/:id/toggle", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { active } = req.body;
+    if (active === undefined) return res.status(400).json({ message: "active required" });
+    const updated = await storage.updateRewardCampaignActive(id, active);
+    if (!updated) return res.status(404).json({ message: "Campaign not found" });
+    res.json(updated);
+  });
+
+  app.get("/api/treasury/campaigns/:id/claims", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const claims = await storage.getRewardClaims(id);
+    res.json(claims);
+  });
+
+  app.post("/api/treasury/campaigns/:id/claims", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const campaign = await storage.getRewardCampaign(id);
+    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+    if (!campaign.active) return res.status(400).json({ message: "Campaign is not active" });
+
+    const parsed = insertRewardClaimSchema.safeParse({ ...req.body, campaignId: id });
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+
+    if (parsed.data.holdingUsd < campaign.minHoldingUsd) {
+      return res.status(400).json({ message: `Minimum holding of $${campaign.minHoldingUsd} required` });
+    }
+
+    const claim = await storage.insertRewardClaim({ ...parsed.data, rewardUsd: campaign.rewardUsd });
+    res.status(201).json(claim);
   });
 
   return httpServer;

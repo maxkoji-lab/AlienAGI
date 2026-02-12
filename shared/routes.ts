@@ -43,6 +43,64 @@ export const api = {
       },
     },
   },
+  treasury: {
+    stats: {
+      method: 'GET' as const,
+      path: '/api/treasury/stats' as const,
+    },
+    buybacks: {
+      list: {
+        method: 'GET' as const,
+        path: '/api/treasury/buybacks' as const,
+      },
+      create: {
+        method: 'POST' as const,
+        path: '/api/treasury/buybacks' as const,
+      },
+      updateStatus: {
+        method: 'PATCH' as const,
+        path: '/api/treasury/buybacks/:id/status' as const,
+      },
+    },
+    burns: {
+      list: {
+        method: 'GET' as const,
+        path: '/api/treasury/burns' as const,
+      },
+      create: {
+        method: 'POST' as const,
+        path: '/api/treasury/burns' as const,
+      },
+      updateStatus: {
+        method: 'PATCH' as const,
+        path: '/api/treasury/burns/:id/status' as const,
+      },
+    },
+    campaigns: {
+      list: {
+        method: 'GET' as const,
+        path: '/api/treasury/campaigns' as const,
+      },
+      create: {
+        method: 'POST' as const,
+        path: '/api/treasury/campaigns' as const,
+      },
+      toggle: {
+        method: 'PATCH' as const,
+        path: '/api/treasury/campaigns/:id/toggle' as const,
+      },
+    },
+    claims: {
+      list: {
+        method: 'GET' as const,
+        path: '/api/treasury/campaigns/:id/claims' as const,
+      },
+      create: {
+        method: 'POST' as const,
+        path: '/api/treasury/campaigns/:id/claims' as const,
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

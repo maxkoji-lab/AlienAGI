@@ -3,11 +3,14 @@ import { TerminalCard } from "@/components/TerminalCard";
 import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
-import { Activity, Users, TrendingUp, Cpu, AlertTriangle } from "lucide-react";
+import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 export default function Dashboard() {
+  const [, navigate] = useLocation();
   const { data: metrics, isLoading: loadingMetrics } = useMetrics();
   const { data: latest, isLoading: loadingLatest } = useLatestMetric();
   const { data: brief, isLoading: loadingBrief } = useBrief();
@@ -62,6 +65,15 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              className="border-cyan-500/50 text-cyan-400 font-mono gap-2"
+              onClick={() => navigate("/treasury")}
+              data-testid="button-go-treasury"
+            >
+              <Vault className="w-4 h-4" />
+              TREASURY
+            </Button>
             <div className="text-right hidden md:block">
               <p className="text-xs text-muted-foreground uppercase tracking-widest">Current Block Time</p>
               <p className="font-mono text-primary font-bold">{new Date().toLocaleTimeString()}</p>
