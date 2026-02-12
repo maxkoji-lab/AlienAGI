@@ -2,7 +2,7 @@ import { useMetrics, useLatestMetric, useBrief } from "@/hooks/use-metrics";
 import { TerminalCard } from "@/components/TerminalCard";
 import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
-import { ScannerChart } from "@/components/ScannerChart";
+import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan } from "lucide-react";
 import alienBg from "@assets/VS_1770881377474.png";
@@ -60,7 +60,12 @@ export default function Dashboard() {
   const [contractAddress, setContractAddress] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<TokenAnalysis | null>(null);
+  const [scannerLive, setScannerLive] = useState<ScannerLiveData | null>(null);
   const { toast } = useToast();
+
+  const handleLiveUpdate = useCallback((data: ScannerLiveData) => {
+    setScannerLive(data);
+  }, []);
 
   const handleAnalyze = useCallback(async () => {
     const trimmed = contractAddress.trim();
@@ -70,6 +75,7 @@ export default function Dashboard() {
     }
     setAnalyzing(true);
     setAnalysis(null);
+    setScannerLive(null);
     try {
       const res = await apiRequest("POST", "/api/analyze", { mint: trimmed });
       if (!res.ok) {
@@ -79,6 +85,15 @@ export default function Dashboard() {
       }
       const data = await res.json();
       setAnalysis(data);
+      setScannerLive({
+        nci: parseFloat(data.nciRaw),
+        holders: data.holders,
+        whaleConcentration: parseFloat(data.whaleConcentration),
+        band: data.band,
+        posture: data.posture,
+        prevNci: parseFloat(data.nciRaw),
+        prevHolders: data.holders,
+      });
     } catch (e: any) {
       toast({ title: "Analysis Failed", description: e.message || "Could not analyze token.", variant: "destructive" });
     } finally {
@@ -182,21 +197,49 @@ export default function Dashboard() {
           <TerminalCard title="Alien Conviction Index" delay={0.1} highlight>
             <div className="flex items-center justify-between">
               <MetricValue 
-                label="Current NCI"
-                value={latest?.nciRaw.toFixed(4) || "0.0000"}
-                trend={getTrend(latest?.nciRaw || 0, previousMetric?.nciRaw)}
+                label={analysis ? "Scanned NCI" : "Current NCI"}
+                value={
+                  scannerLive
+                    ? scannerLive.nci.toFixed(2)
+                    : analysis
+                      ? parseFloat(analysis.nciRaw).toFixed(2)
+                      : latest?.nciRaw.toFixed(4) || "0.0000"
+                }
+                trend={
+                  scannerLive
+                    ? getTrend(scannerLive.nci, scannerLive.prevNci)
+                    : getTrend(latest?.nciRaw || 0, previousMetric?.nciRaw)
+                }
                 color="secondary"
               />
               <Activity className="w-8 h-8 text-secondary/50" />
             </div>
+            {analysis && (
+              <div className="mt-2 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-[9px] font-mono text-muted-foreground truncate">
+                  {analysis.mint.slice(0, 6)}...{analysis.mint.slice(-4)}
+                </span>
+              </div>
+            )}
           </TerminalCard>
 
           <TerminalCard title="Holder Distribution" delay={0.2}>
             <div className="flex items-center justify-between">
               <MetricValue 
-                label="Total Holders"
-                value={latest?.holders.toLocaleString() || "0"}
-                trend={getTrend(latest?.holders || 0, previousMetric?.holders)}
+                label={analysis ? "Scanned Holders" : "Total Holders"}
+                value={
+                  scannerLive
+                    ? scannerLive.holders.toLocaleString()
+                    : analysis
+                      ? analysis.holders.toLocaleString()
+                      : latest?.holders.toLocaleString() || "0"
+                }
+                trend={
+                  scannerLive
+                    ? getTrend(scannerLive.holders, scannerLive.prevHolders)
+                    : getTrend(latest?.holders || 0, previousMetric?.holders)
+                }
                 color="primary"
               />
               <Users className="w-8 h-8 text-primary/50" />
@@ -206,9 +249,21 @@ export default function Dashboard() {
           <TerminalCard title="Whale Net Flow" delay={0.3}>
             <div className="flex items-center justify-between">
               <MetricValue 
-                label="24h Net Flow"
-                value={latest?.whaleNetFlow.toFixed(2) + "%" || "0%"}
-                trend={latest?.whaleNetFlow && latest.whaleNetFlow > 0 ? "up" : "down"}
+                label={analysis ? "Whale Concentration" : "24h Net Flow"}
+                value={
+                  scannerLive
+                    ? scannerLive.whaleConcentration.toFixed(2) + "%"
+                    : analysis
+                      ? analysis.whaleConcentration
+                      : latest?.whaleNetFlow.toFixed(2) + "%" || "0%"
+                }
+                trend={
+                  scannerLive
+                    ? "neutral"
+                    : analysis
+                      ? "neutral"
+                      : latest?.whaleNetFlow && latest.whaleNetFlow > 0 ? "up" : "down"
+                }
                 color="accent"
               />
               <TrendingUp className="w-8 h-8 text-accent/50" />
@@ -221,18 +276,18 @@ export default function Dashboard() {
                  <span className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Status</span>
                  <span className={cn(
                    "text-2xl font-display font-bold uppercase",
-                   latest?.posture === "BULLISH" ? "text-primary" : 
-                   latest?.posture === "BEARISH" ? "text-destructive" : "text-yellow-500"
-                 )}>
-                   {latest?.posture || "ANALYZING"}
+                   (scannerLive?.posture || analysis?.posture || latest?.posture) === "BULLISH" ? "text-primary" : 
+                   (scannerLive?.posture || analysis?.posture || latest?.posture) === "BEARISH" ? "text-destructive" : "text-yellow-500"
+                 )} data-testid="text-posture-status">
+                   {scannerLive?.posture || analysis?.posture || latest?.posture || "ANALYZING"}
                  </span>
-                 <span className="text-xs text-muted-foreground mt-1 font-mono">
-                   Band: {latest?.band || "UNK"}
+                 <span className="text-xs text-muted-foreground mt-1 font-mono" data-testid="text-posture-band">
+                   Band: {scannerLive?.band || analysis?.band || latest?.band || "UNK"}
                  </span>
                </div>
                <AlertTriangle className={cn(
                  "w-8 h-8 opacity-50",
-                 latest?.posture === "BULLISH" ? "text-primary" : "text-destructive"
+                 (scannerLive?.posture || analysis?.posture || latest?.posture) === "BULLISH" ? "text-primary" : "text-destructive"
                )} />
              </div>
           </TerminalCard>
@@ -327,6 +382,7 @@ export default function Dashboard() {
                     initialNci={parseFloat(analysis.nciRaw)}
                     initialHolders={analysis.holders}
                     initialWhaleConcentration={parseFloat(analysis.whaleConcentration)}
+                    onLiveUpdate={handleLiveUpdate}
                   />
                 </div>
               </motion.div>
