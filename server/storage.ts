@@ -1,38 +1,69 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { metrics, whaleState, type InsertMetric, type InsertWhaleState, type Metric, type WhaleState } from "@shared/schema";
+import { eq, desc, lte } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  insertMetric(metric: InsertMetric): Promise<Metric>;
+  getLatestMetric(mint: string): Promise<Metric | undefined>;
+  getMetricsHistory(mint: string, limit?: number): Promise<Metric[]>;
+  getMetricAtOrBefore(mint: string, ts: Date): Promise<Metric | undefined>;
+  
+  getWhaleLastSig(owner: string): Promise<string | undefined>;
+  setWhaleLastSig(owner: string, sig: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async insertMetric(metric: InsertMetric): Promise<Metric> {
+    const [inserted] = await db.insert(metrics).values(metric).returning();
+    return inserted;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getLatestMetric(mint: string): Promise<Metric | undefined> {
+    const [latest] = await db
+      .select()
+      .from(metrics)
+      .where(eq(metrics.mint, mint))
+      .orderBy(desc(metrics.ts))
+      .limit(1);
+    return latest;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getMetricsHistory(mint: string, limit: number = 100): Promise<Metric[]> {
+    return await db
+      .select()
+      .from(metrics)
+      .where(eq(metrics.mint, mint))
+      .orderBy(desc(metrics.ts))
+      .limit(limit);
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getMetricAtOrBefore(mint: string, ts: Date): Promise<Metric | undefined> {
+    const [found] = await db
+      .select()
+      .from(metrics)
+      .where(lte(metrics.ts, ts))
+      .orderBy(desc(metrics.ts))
+      .limit(1);
+    return found;
+  }
+
+  async getWhaleLastSig(owner: string): Promise<string | undefined> {
+    const [state] = await db
+      .select()
+      .from(whaleState)
+      .where(eq(whaleState.owner, owner));
+    return state?.lastSig ?? undefined;
+  }
+
+  async setWhaleLastSig(owner: string, sig: string): Promise<void> {
+    await db
+      .insert(whaleState)
+      .values({ owner, lastSig: sig })
+      .onConflictDoUpdate({
+        target: whaleState.owner,
+        set: { lastSig: sig },
+      });
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
