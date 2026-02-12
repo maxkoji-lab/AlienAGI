@@ -70,7 +70,6 @@ export async function getHoldersSnapshot(mint: string, minUiAmount: number = 0.0
     if (maxPages > 0 && page > maxPages) break;
   }
 
-  // Filter dust
   const filteredOwnerBal: Record<string, number> = {};
   for (const [o, b] of Object.entries(ownerBal)) {
     if (b > minUiAmount) filteredOwnerBal[o] = b;
