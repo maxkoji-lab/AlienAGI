@@ -4,7 +4,7 @@ import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault } from "lucide-react";
-import alienBg from "@assets/WhatsApp_Image_2026-02-12_at_2.22.31_PM_1770879447766.jpeg";
+
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -74,17 +74,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8 relative overflow-hidden">
-      <div
-        className="fixed inset-0 pointer-events-none z-0"
-        style={{
-          backgroundImage: `url(${alienBg})`,
-          backgroundSize: "contain",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          opacity: 0.5,
-          mixBlendMode: "lighten",
-        }}
-      />
       <div className="scanline"></div>
       
       <div className="max-w-7xl mx-auto relative z-10 space-y-6">
