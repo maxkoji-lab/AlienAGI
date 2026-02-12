@@ -317,7 +317,7 @@ export default function Dashboard() {
       />
       <div className="scanline"></div>
       
-      <div className="max-w-7xl mx-auto relative z-10 space-y-6">
+      <div className="max-w-7xl mx-auto relative z-10 space-y-4">
         
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-primary/20 pb-6">
