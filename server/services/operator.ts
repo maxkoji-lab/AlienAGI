@@ -41,7 +41,7 @@ async function rpcPost(method: string, params: any): Promise<any> {
   return data.result;
 }
 
-async function getHoldersSnapshot(mint: string, minUiAmount: number = 0.0): Promise<{ holders: number, ownerBal: Record<string, number> }> {
+export async function getHoldersSnapshot(mint: string, minUiAmount: number = 0.0): Promise<{ holders: number, ownerBal: Record<string, number> }> {
   let page = 1;
   const ownerBal: Record<string, number> = {};
 
@@ -128,7 +128,7 @@ interface NCIInputs {
   whaleNetFlow: number;
 }
 
-function computeNciRaw(inp: NCIInputs): number {
+export function computeNciRaw(inp: NCIInputs): number {
   // Holder growth: -20 -> 0, +100 -> 1
   const H = clip((inp.holdersDelta24h + 20) / 120.0);
 

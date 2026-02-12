@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
-import { runOperatorLoop, buildBrief, bandAndPosture } from "./services/operator";
+import { runOperatorLoop, buildBrief, bandAndPosture, getHoldersSnapshot, computeNciRaw } from "./services/operator";
 import { insertBuybackSchema, insertBurnSchema, insertRewardCampaignSchema, insertRewardClaimSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -149,6 +149,69 @@ export async function registerRoutes(
 
     const claim = await storage.insertRewardClaim({ ...parsed.data, rewardUsd: campaign.rewardUsd });
     res.status(201).json(claim);
+  });
+
+  app.post(api.analyze.path, async (req, res) => {
+    const schema = z.object({ mint: z.string().min(30).max(50) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid contract address" });
+
+    const { mint } = parsed.data;
+
+    if (!process.env.HELIUS_API_KEY) {
+      return res.status(503).json({ message: "Helius API key not configured. Token analysis unavailable." });
+    }
+
+    try {
+      const { holders, ownerBal } = await getHoldersSnapshot(mint);
+      const topWhales = Object.entries(ownerBal)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 20);
+
+      const totalSupplyHeld = Object.values(ownerBal).reduce((a, b) => a + b, 0);
+      const whaleConcentration = topWhales.reduce((a, [, b]) => a + b, 0);
+      const concentrationPct = totalSupplyHeld > 0 ? (whaleConcentration / totalSupplyHeld) * 100 : 0;
+
+      const nciRaw = computeNciRaw({ holders, holdersDelta24h: 0, whaleNetFlow: 0 });
+      const { band, posture } = bandAndPosture(nciRaw);
+
+      const tokenData = {
+        mint,
+        holders,
+        topWhales: topWhales.length,
+        whaleConcentration: concentrationPct.toFixed(2) + "%",
+        nciRaw: nciRaw.toFixed(1),
+        band,
+        posture,
+      };
+
+      const prompt = `Analyze this Solana token:\nMint: ${mint}\nHolders: ${holders}\nTop 20 whales hold: ${concentrationPct.toFixed(1)}% of supply\nNCI Score: ${nciRaw.toFixed(1)}/100 (${band})\nPosture: ${posture}\n\nProvide a brief, actionable analysis covering: holder distribution health, whale risk, and overall conviction assessment. Keep it concise (under 200 words). Use a direct, analytical tone.`;
+
+      let aiAnalysis: string | null = null;
+      try {
+        const agentRes = await fetch("http://localhost:3001/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: prompt, thread_id: `analyze_${mint}` }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (agentRes.ok) {
+          const agentData = await agentRes.json();
+          aiAnalysis = agentData.response || null;
+        }
+      } catch {
+        // BabyAGI 3 not available, skip AI analysis
+      }
+
+      res.json({
+        ...tokenData,
+        aiAnalysis,
+        analyzedAt: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      console.error("Analyze error:", e);
+      res.status(500).json({ message: e.message || "Failed to analyze token" });
+    }
   });
 
   return httpServer;
