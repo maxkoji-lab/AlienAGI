@@ -1,18 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Connection, VersionedTransaction } from "@solana/web3.js";
 import {
   Bot,
   Zap,
-  TrendingUp,
-  TrendingDown,
   Pause,
   Play,
   Settings,
@@ -23,10 +18,10 @@ import {
   Wallet,
   Activity,
   ExternalLink,
+  KeyRound,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
-
-const SOL_MINT = "So11111111111111111111111111111111111111112";
-const LAMPORTS_PER_SOL = 1_000_000_000;
 
 interface TradeSignal {
   id: number;
@@ -51,6 +46,12 @@ interface EvalResult {
   shouldExecute: boolean;
 }
 
+interface WalletStatus {
+  configured: boolean;
+  address: string | null;
+  error?: string;
+}
+
 interface AutoTraderProps {
   mint: string | null;
   tokenSymbol: string | null;
@@ -59,7 +60,6 @@ interface AutoTraderProps {
 }
 
 export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoTraderProps) {
-  const { publicKey, connected, signTransaction, sendTransaction } = useWallet();
   const { toast } = useToast();
 
   const [botEnabled, setBotEnabled] = useState(false);
@@ -68,11 +68,20 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   const [sellThreshold, setSellThreshold] = useState(25);
   const [tradeAmountSol, setTradeAmountSol] = useState("0.1");
   const [maxTradesPerDay, setMaxTradesPerDay] = useState(5);
+  const [slippageBps, setSlippageBps] = useState(150);
   const evalIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [executing, setExecuting] = useState(false);
 
   const [currentEval, setCurrentEval] = useState<EvalResult | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
+
+  const { data: walletStatus } = useQuery<WalletStatus>({
+    queryKey: ["/api/trade/wallet"],
+    refetchInterval: 30000,
+  });
+
+  const walletConfigured = walletStatus?.configured ?? false;
+  const walletAddress = walletStatus?.address ?? null;
 
   const { data: tradeHistory = [] } = useQuery<TradeSignal[]>({
     queryKey: [`/api/trade-signals?mint=${mint}`],
@@ -104,7 +113,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   }, [mint, currentNci, evaluateNci]);
 
   useEffect(() => {
-    if (botEnabled && mint && connected && currentNci !== null) {
+    if (botEnabled && mint && walletConfigured && currentNci !== null) {
       evalIntervalRef.current = setInterval(() => {
         evaluateNci();
       }, 5000);
@@ -117,100 +126,10 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         evalIntervalRef.current = null;
       }
     }
-  }, [botEnabled, mint, connected, currentNci, evaluateNci]);
-
-  const executeSwap = useCallback(async (action: string): Promise<{ txSignature: string | null; status: string }> => {
-    if (!mint || !publicKey || !signTransaction || !sendTransaction) {
-      return { txSignature: null, status: "failed" };
-    }
-
-    const amountSol = parseFloat(tradeAmountSol) || 0.1;
-    const isBuy = action === "BUY";
-    const inputMint = isBuy ? SOL_MINT : mint;
-    const outputMint = isBuy ? mint : SOL_MINT;
-
-    let amount: number;
-    if (isBuy) {
-      amount = Math.floor(amountSol * LAMPORTS_PER_SOL);
-    } else {
-      const quoteCheckRes = await fetch("/api/jupiter/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inputMint: SOL_MINT,
-          outputMint: mint,
-          amount: Math.floor(amountSol * LAMPORTS_PER_SOL),
-          slippageBps: 100,
-        }),
-      });
-      if (quoteCheckRes.ok) {
-        const checkData = await quoteCheckRes.json();
-        amount = parseInt(checkData.outAmount || "0", 10);
-      } else {
-        amount = Math.floor(amountSol * LAMPORTS_PER_SOL);
-      }
-    }
-
-    try {
-      const quoteRes = await fetch("/api/jupiter/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inputMint,
-          outputMint,
-          amount,
-          slippageBps: 150,
-        }),
-      });
-
-      if (!quoteRes.ok) {
-        const err = await quoteRes.json().catch(() => ({ message: "Quote failed" }));
-        throw new Error(err.message || "Failed to get swap quote");
-      }
-
-      const quoteData = await quoteRes.json();
-
-      const swapRes = await fetch("/api/jupiter/swap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quoteResponse: quoteData,
-          userPublicKey: publicKey.toBase58(),
-        }),
-      });
-
-      if (!swapRes.ok) {
-        const err = await swapRes.json().catch(() => ({ message: "Swap build failed" }));
-        throw new Error(err.message || "Failed to build swap transaction");
-      }
-
-      const { swapTransaction } = await swapRes.json();
-
-      const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
-      const transaction = VersionedTransaction.deserialize(txBuf);
-
-      const connection = new Connection(
-        "https://api.mainnet-beta.solana.com",
-        "confirmed"
-      );
-
-      const txSignature = await sendTransaction(transaction, connection, {
-        skipPreflight: true,
-        maxRetries: 3,
-      });
-
-      return { txSignature, status: "submitted" };
-    } catch (e: any) {
-      const msg = e?.message || "Swap failed";
-      if (msg.includes("User rejected") || msg.includes("rejected")) {
-        return { txSignature: null, status: "rejected" };
-      }
-      throw e;
-    }
-  }, [mint, publicKey, signTransaction, sendTransaction, tradeAmountSol]);
+  }, [botEnabled, mint, walletConfigured, currentNci, evaluateNci]);
 
   const executeTrade = useCallback(async (action: string) => {
-    if (!mint || !publicKey || executing) return;
+    if (!mint || !walletConfigured || executing) return;
     setExecuting(true);
 
     let signalId: number | null = null;
@@ -223,7 +142,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         nciAtSignal: currentNci || 0,
         band: currentBand || "unknown",
         amountSol: parseFloat(tradeAmountSol) || 0.1,
-        walletAddress: publicKey.toBase58(),
+        walletAddress: walletAddress,
         status: "executing",
       });
       const signal = await signalRes.json();
@@ -231,27 +150,45 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
 
       toast({
-        title: `${action} — Awaiting Wallet Approval`,
-        description: `${parseFloat(tradeAmountSol) || 0.1} SOL via Jupiter — approve in Phantom`,
+        title: `${action} — Executing Trade`,
+        description: `${parseFloat(tradeAmountSol) || 0.1} SOL via Jupiter — signing server-side`,
       });
 
-      const { txSignature, status } = await executeSwap(action);
-
-      await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
-        status,
-        txSignature,
+      const execRes = await fetch("/api/trade/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mint,
+          action,
+          amountSol: parseFloat(tradeAmountSol) || 0.1,
+          slippageBps,
+        }),
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
 
-      if (status === "submitted") {
+      const result = await execRes.json();
+
+      if (execRes.ok && result.txSignature) {
+        await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
+          status: "submitted",
+          txSignature: result.txSignature,
+        });
+        queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
+
         toast({
           title: `${action} Submitted`,
-          description: txSignature
-            ? `TX: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}`
-            : "Swap submitted to network",
+          description: `TX: ${result.txSignature.slice(0, 8)}...${result.txSignature.slice(-8)}`,
         });
-      } else if (status === "rejected") {
-        toast({ title: `${action} Rejected`, description: "You declined the transaction in Phantom", variant: "destructive" });
+      } else {
+        await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
+          status: "failed",
+        });
+        queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
+
+        toast({
+          title: `${action} Failed`,
+          description: result.message || "Trade execution failed",
+          variant: "destructive",
+        });
       }
     } catch (e: any) {
       if (signalId) {
@@ -262,16 +199,16 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       }
       toast({
         title: `${action} Failed`,
-        description: e?.message || "Swap transaction failed",
+        description: e?.message || "Trade execution failed",
         variant: "destructive",
       });
     }
 
     setExecuting(false);
-  }, [mint, publicKey, tokenSymbol, currentNci, currentBand, tradeAmountSol, executing, executeSwap]);
+  }, [mint, walletConfigured, walletAddress, tokenSymbol, currentNci, currentBand, tradeAmountSol, slippageBps, executing]);
 
   useEffect(() => {
-    if (!botEnabled || !currentEval || !connected || !publicKey || !mint || executing) return;
+    if (!botEnabled || !currentEval || !walletConfigured || !mint || executing) return;
 
     const todayExecutedSignals = tradeHistory.filter(s => {
       const signalDate = new Date(s.ts).toDateString();
@@ -292,15 +229,15 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
 
       executeTrade(currentEval.action);
     }
-  }, [currentEval, botEnabled, connected, publicKey, mint, tradeHistory, maxTradesPerDay, executing, executeTrade]);
+  }, [currentEval, botEnabled, walletConfigured, mint, tradeHistory, maxTradesPerDay, executing, executeTrade]);
 
   const handleManualTrade = async (action: string) => {
-    if (!mint || !connected || !publicKey) {
-      toast({ title: "Wallet not connected", description: "Connect your Phantom wallet first", variant: "destructive" });
+    if (!mint) {
+      toast({ title: "Scan a token first", variant: "destructive" });
       return;
     }
-    if (!signTransaction) {
-      toast({ title: "Wallet doesn't support signing", description: "Use Phantom wallet", variant: "destructive" });
+    if (!walletConfigured) {
+      toast({ title: "Wallet not configured", description: "Add your WALLET_PRIVATE_KEY in the Secrets tab", variant: "destructive" });
       return;
     }
     await executeTrade(action);
@@ -374,29 +311,42 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       </div>
 
       <div className="flex items-center gap-2">
-        <WalletMultiButton
-          style={{
-            height: "28px",
-            fontSize: "10px",
-            fontFamily: "monospace",
-            padding: "0 10px",
-            borderRadius: "6px",
-            backgroundColor: connected ? "rgba(var(--primary-rgb, 0, 255, 128), 0.1)" : "rgba(128, 90, 213, 0.2)",
-            border: connected ? "1px solid rgba(var(--primary-rgb, 0, 255, 128), 0.3)" : "1px solid rgba(128, 90, 213, 0.4)",
-            color: connected ? "inherit" : "#c4b5fd",
-          }}
-          data-testid="button-connect-wallet"
-        />
-        {connected && publicKey && (
-          <span className="text-[9px] font-mono text-muted-foreground truncate max-w-[120px]" data-testid="text-wallet-address">
-            {publicKey.toBase58().slice(0, 4)}...{publicKey.toBase58().slice(-4)}
-          </span>
+        {walletConfigured ? (
+          <div className="flex items-center gap-2 px-2.5 py-1 border border-green-500/30 rounded-md bg-green-500/10">
+            <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+            <span className="text-[10px] font-mono text-green-400">Wallet Connected</span>
+            {walletAddress && (
+              <span className="text-[9px] font-mono text-muted-foreground" data-testid="text-wallet-address">
+                {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-2.5 py-1 border border-yellow-500/30 rounded-md bg-yellow-500/10">
+            <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
+            <span className="text-[10px] font-mono text-yellow-400">No Wallet Key</span>
+          </div>
         )}
       </div>
 
       {showSettings && (
         <div className="border border-primary/10 rounded-md p-3 space-y-3 bg-black/20">
           <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Bot Configuration</div>
+
+          {!walletConfigured && (
+            <div className="border border-yellow-500/20 rounded-md p-2 bg-yellow-500/5 mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <KeyRound className="w-3.5 h-3.5 text-yellow-400" />
+                <span className="text-[10px] font-mono text-yellow-300">Private Key Required</span>
+              </div>
+              <p className="text-[9px] font-mono text-muted-foreground leading-relaxed">
+                Add your wallet's base58 private key as <span className="text-primary">WALLET_PRIVATE_KEY</span> in the Secrets tab.
+                This enables direct trade execution without wallet popups.
+                Use a dedicated trading wallet, not your main holdings.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[9px] font-mono text-muted-foreground uppercase">Buy NCI Threshold</label>
@@ -444,10 +394,22 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
                 data-testid="input-max-trades"
               />
             </div>
+            <div className="col-span-2">
+              <label className="text-[9px] font-mono text-muted-foreground uppercase">Slippage (bps, 100 = 1%)</label>
+              <Input
+                type="number"
+                min={10}
+                max={5000}
+                value={slippageBps}
+                onChange={(e) => setSlippageBps(parseInt(e.target.value) || 150)}
+                className="h-7 text-xs font-mono mt-0.5"
+                data-testid="input-slippage"
+              />
+            </div>
           </div>
           <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60">
             <ShieldCheck className="w-3 h-3" />
-            <span>Each trade requires Phantom wallet approval</span>
+            <span>Trades execute directly via server-side signing</span>
           </div>
         </div>
       )}
@@ -498,8 +460,8 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           size="sm"
           variant={botEnabled ? "destructive" : "default"}
           onClick={() => {
-            if (!connected) {
-              toast({ title: "Connect wallet first", variant: "destructive" });
+            if (!walletConfigured) {
+              toast({ title: "Add WALLET_PRIVATE_KEY first", description: "Open Settings for instructions", variant: "destructive" });
               return;
             }
             if (!mint) {
@@ -516,7 +478,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         >
           {botEnabled ? <><Pause className="w-3 h-3 mr-1" /> Stop Bot</> : <><Play className="w-3 h-3 mr-1" /> Start Bot</>}
         </Button>
-        {connected && mint && (
+        {walletConfigured && mint && (
           <div className="flex gap-1 ml-auto">
             <Button
               size="sm"
@@ -592,13 +554,15 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         </div>
       </div>
 
-      {!connected && (
+      {!walletConfigured && (
         <div className="border border-purple-500/20 rounded-md p-2 bg-purple-500/5">
           <div className="flex items-center gap-2">
-            <Wallet className="w-4 h-4 text-purple-400" />
+            <KeyRound className="w-4 h-4 text-purple-400" />
             <div>
-              <div className="text-[10px] font-mono text-purple-300">Connect Phantom Wallet</div>
-              <div className="text-[9px] font-mono text-muted-foreground">Required for auto-trading pump.fun tokens</div>
+              <div className="text-[10px] font-mono text-purple-300">Add Trading Wallet Key</div>
+              <div className="text-[9px] font-mono text-muted-foreground">
+                Add <span className="text-primary">WALLET_PRIVATE_KEY</span> in Secrets tab for direct trade execution
+              </div>
             </div>
           </div>
         </div>

@@ -7,6 +7,8 @@ import { insertBuybackSchema, insertBurnSchema, insertRewardCampaignSchema, inse
 import { z } from "zod";
 import { fetchTokenProfile } from "./services/dexscreener";
 import { startMonitoring, stopMonitoring, getAlerts, clearAlerts, getMonitorStatus } from "./services/xmonitor";
+import { Connection, Keypair, VersionedTransaction } from "@solana/web3.js";
+import bs58 from "bs58";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -475,6 +477,123 @@ export async function registerRoutes(
       res.json(swapData);
     } catch (e: any) {
       res.status(500).json({ message: e.message || "Jupiter swap failed" });
+    }
+  });
+
+  app.post("/api/trade/execute", async (req, res) => {
+    try {
+      const schema = z.object({
+        mint: z.string().min(30).max(50),
+        action: z.string().regex(/^(BUY|SELL)$/),
+        amountSol: z.number().positive().max(100),
+        slippageBps: z.number().int().min(10).max(5000).optional().default(150),
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+
+      const privateKey = process.env.WALLET_PRIVATE_KEY;
+      if (!privateKey) {
+        return res.status(400).json({ message: "Wallet private key not configured. Add WALLET_PRIVATE_KEY in secrets." });
+      }
+
+      let keypair: Keypair;
+      try {
+        const decoded = bs58.decode(privateKey);
+        keypair = Keypair.fromSecretKey(decoded);
+      } catch {
+        return res.status(400).json({ message: "Invalid private key format. Must be base58-encoded." });
+      }
+
+      const { mint, action, amountSol, slippageBps } = parsed.data;
+      const walletAddress = keypair.publicKey.toBase58();
+      const SOL_MINT = "So11111111111111111111111111111111111111112";
+      const LAMPORTS_PER_SOL = 1_000_000_000;
+
+      const isBuy = action === "BUY";
+      const inputMint = isBuy ? SOL_MINT : mint;
+      const outputMint = isBuy ? mint : SOL_MINT;
+
+      let amount: number;
+      if (isBuy) {
+        amount = Math.floor(amountSol * LAMPORTS_PER_SOL);
+      } else {
+        const reverseQuoteRes = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_MINT}&outputMint=${mint}&amount=${Math.floor(amountSol * LAMPORTS_PER_SOL)}&slippageBps=${slippageBps}`);
+        if (reverseQuoteRes.ok) {
+          const reverseQuote = await reverseQuoteRes.json() as any;
+          amount = parseInt(reverseQuote.outAmount || "0", 10);
+        } else {
+          return res.status(400).json({ message: "Failed to calculate sell amount. Token may not have liquidity." });
+        }
+      }
+
+      const quoteRes = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`);
+      if (!quoteRes.ok) {
+        const errText = await quoteRes.text();
+        return res.status(400).json({ message: `Jupiter quote failed: ${errText}` });
+      }
+      const quoteData = await quoteRes.json();
+
+      const swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse: quoteData,
+          userPublicKey: walletAddress,
+          wrapAndUnwrapSol: true,
+          dynamicSlippage: { minBps: 50, maxBps: 300 },
+          prioritizationFeeLamports: "auto",
+        }),
+      });
+
+      if (!swapRes.ok) {
+        const errText = await swapRes.text();
+        return res.status(400).json({ message: `Jupiter swap build failed: ${errText}` });
+      }
+
+      const { swapTransaction } = await swapRes.json() as any;
+
+      const txBuf = Buffer.from(swapTransaction, "base64");
+      const transaction = VersionedTransaction.deserialize(txBuf);
+
+      transaction.sign([keypair]);
+
+      const heliusKey = process.env.HELIUS_API_KEY;
+      const rpcUrl = heliusKey
+        ? `https://mainnet.helius-rpc.com/?api-key=${heliusKey}`
+        : "https://api.mainnet-beta.solana.com";
+
+      const connection = new Connection(rpcUrl, "confirmed");
+
+      const txSignature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: true,
+        maxRetries: 3,
+      });
+
+      res.json({
+        txSignature,
+        walletAddress,
+        action,
+        amountSol,
+        status: "submitted",
+      });
+    } catch (e: any) {
+      console.error("Trade execution error:", e);
+      res.status(500).json({ message: e.message || "Trade execution failed" });
+    }
+  });
+
+  app.get("/api/trade/wallet", async (_req, res) => {
+    const privateKey = process.env.WALLET_PRIVATE_KEY;
+    if (!privateKey) {
+      return res.json({ configured: false, address: null });
+    }
+    try {
+      const decoded = bs58.decode(privateKey);
+      const keypair = Keypair.fromSecretKey(decoded);
+      return res.json({ configured: true, address: keypair.publicKey.toBase58() });
+    } catch {
+      return res.json({ configured: false, address: null, error: "Invalid key format" });
     }
   });
 
