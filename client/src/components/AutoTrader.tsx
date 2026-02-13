@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { Connection, VersionedTransaction } from "@solana/web3.js";
 import {
   Bot,
   Zap,
@@ -23,6 +24,9 @@ import {
   Activity,
   ExternalLink,
 } from "lucide-react";
+
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+const LAMPORTS_PER_SOL = 1_000_000_000;
 
 interface TradeSignal {
   id: number;
@@ -55,7 +59,7 @@ interface AutoTraderProps {
 }
 
 export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoTraderProps) {
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected, signTransaction, sendTransaction } = useWallet();
   const { toast } = useToast();
 
   const [botEnabled, setBotEnabled] = useState(false);
@@ -65,6 +69,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   const [tradeAmountSol, setTradeAmountSol] = useState("0.1");
   const [maxTradesPerDay, setMaxTradesPerDay] = useState(5);
   const evalIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [executing, setExecuting] = useState(false);
 
   const [currentEval, setCurrentEval] = useState<EvalResult | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
@@ -114,8 +119,159 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
     }
   }, [botEnabled, mint, connected, currentNci, evaluateNci]);
 
+  const executeSwap = useCallback(async (action: string): Promise<{ txSignature: string | null; status: string }> => {
+    if (!mint || !publicKey || !signTransaction || !sendTransaction) {
+      return { txSignature: null, status: "failed" };
+    }
+
+    const amountSol = parseFloat(tradeAmountSol) || 0.1;
+    const isBuy = action === "BUY";
+    const inputMint = isBuy ? SOL_MINT : mint;
+    const outputMint = isBuy ? mint : SOL_MINT;
+
+    let amount: number;
+    if (isBuy) {
+      amount = Math.floor(amountSol * LAMPORTS_PER_SOL);
+    } else {
+      const quoteCheckRes = await fetch("/api/jupiter/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputMint: SOL_MINT,
+          outputMint: mint,
+          amount: Math.floor(amountSol * LAMPORTS_PER_SOL),
+          slippageBps: 100,
+        }),
+      });
+      if (quoteCheckRes.ok) {
+        const checkData = await quoteCheckRes.json();
+        amount = parseInt(checkData.outAmount || "0", 10);
+      } else {
+        amount = Math.floor(amountSol * LAMPORTS_PER_SOL);
+      }
+    }
+
+    try {
+      const quoteRes = await fetch("/api/jupiter/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputMint,
+          outputMint,
+          amount,
+          slippageBps: 150,
+        }),
+      });
+
+      if (!quoteRes.ok) {
+        const err = await quoteRes.json().catch(() => ({ message: "Quote failed" }));
+        throw new Error(err.message || "Failed to get swap quote");
+      }
+
+      const quoteData = await quoteRes.json();
+
+      const swapRes = await fetch("/api/jupiter/swap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse: quoteData,
+          userPublicKey: publicKey.toBase58(),
+        }),
+      });
+
+      if (!swapRes.ok) {
+        const err = await swapRes.json().catch(() => ({ message: "Swap build failed" }));
+        throw new Error(err.message || "Failed to build swap transaction");
+      }
+
+      const { swapTransaction } = await swapRes.json();
+
+      const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBuf);
+
+      const connection = new Connection(
+        "https://api.mainnet-beta.solana.com",
+        "confirmed"
+      );
+
+      const txSignature = await sendTransaction(transaction, connection, {
+        skipPreflight: true,
+        maxRetries: 3,
+      });
+
+      return { txSignature, status: "submitted" };
+    } catch (e: any) {
+      const msg = e?.message || "Swap failed";
+      if (msg.includes("User rejected") || msg.includes("rejected")) {
+        return { txSignature: null, status: "rejected" };
+      }
+      throw e;
+    }
+  }, [mint, publicKey, signTransaction, sendTransaction, tradeAmountSol]);
+
+  const executeTrade = useCallback(async (action: string) => {
+    if (!mint || !publicKey || executing) return;
+    setExecuting(true);
+
+    let signalId: number | null = null;
+
+    try {
+      const signalRes = await apiRequest("POST", "/api/trade-signals", {
+        mint,
+        tokenSymbol: tokenSymbol || null,
+        action,
+        nciAtSignal: currentNci || 0,
+        band: currentBand || "unknown",
+        amountSol: parseFloat(tradeAmountSol) || 0.1,
+        walletAddress: publicKey.toBase58(),
+        status: "executing",
+      });
+      const signal = await signalRes.json();
+      signalId = signal.id;
+      queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
+
+      toast({
+        title: `${action} — Awaiting Wallet Approval`,
+        description: `${parseFloat(tradeAmountSol) || 0.1} SOL via Jupiter — approve in Phantom`,
+      });
+
+      const { txSignature, status } = await executeSwap(action);
+
+      await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
+        status,
+        txSignature,
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
+
+      if (status === "submitted") {
+        toast({
+          title: `${action} Submitted`,
+          description: txSignature
+            ? `TX: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}`
+            : "Swap submitted to network",
+        });
+      } else if (status === "rejected") {
+        toast({ title: `${action} Rejected`, description: "You declined the transaction in Phantom", variant: "destructive" });
+      }
+    } catch (e: any) {
+      if (signalId) {
+        await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
+          status: "failed",
+        }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
+      }
+      toast({
+        title: `${action} Failed`,
+        description: e?.message || "Swap transaction failed",
+        variant: "destructive",
+      });
+    }
+
+    setExecuting(false);
+  }, [mint, publicKey, tokenSymbol, currentNci, currentBand, tradeAmountSol, executing, executeSwap]);
+
   useEffect(() => {
-    if (!botEnabled || !currentEval || !connected || !publicKey || !mint) return;
+    if (!botEnabled || !currentEval || !connected || !publicKey || !mint || executing) return;
 
     const todaySignals = tradeHistory.filter(s => {
       const signalDate = new Date(s.ts).toDateString();
@@ -131,39 +287,20 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       });
       if (recentSameAction) return;
 
-      recordTradeSignal(currentEval.action);
+      executeTrade(currentEval.action);
     }
-  }, [currentEval, botEnabled, connected, publicKey, mint, tradeHistory, maxTradesPerDay]);
-
-  const recordTradeSignal = async (action: string) => {
-    if (!mint || !publicKey) return;
-    try {
-      await apiRequest("POST", "/api/trade-signals", {
-        mint,
-        tokenSymbol: tokenSymbol || null,
-        action,
-        nciAtSignal: currentNci || 0,
-        band: currentBand || "unknown",
-        amountSol: parseFloat(tradeAmountSol) || 0.1,
-        walletAddress: publicKey.toBase58(),
-        status: "signal_generated",
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
-      toast({
-        title: `${action} Signal Generated`,
-        description: `NCI: ${currentNci?.toFixed(1)} — Signal recorded`,
-      });
-    } catch (e) {
-      console.error("Failed to record trade signal:", e);
-    }
-  };
+  }, [currentEval, botEnabled, connected, publicKey, mint, tradeHistory, maxTradesPerDay, executing, executeTrade]);
 
   const handleManualTrade = async (action: string) => {
     if (!mint || !connected || !publicKey) {
       toast({ title: "Wallet not connected", description: "Connect your Phantom wallet first", variant: "destructive" });
       return;
     }
-    await recordTradeSignal(action);
+    if (!signTransaction) {
+      toast({ title: "Wallet doesn't support signing", description: "Use Phantom wallet", variant: "destructive" });
+      return;
+    }
+    await executeTrade(action);
   };
 
   const getActionColor = (action: string) => {
@@ -191,9 +328,12 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   const getStatusColor = (status: string) => {
     switch (status) {
       case "executed": return "bg-green-500/20 text-green-400";
+      case "submitted": return "bg-green-500/20 text-green-300";
+      case "executing": return "bg-blue-500/20 text-blue-400";
       case "signal_generated": return "bg-cyan-500/20 text-cyan-400";
       case "pending_approval": return "bg-yellow-500/20 text-yellow-400";
       case "rejected": return "bg-red-500/20 text-red-400";
+      case "failed": return "bg-red-500/20 text-red-400";
       case "expired": return "bg-muted text-muted-foreground";
       default: return "bg-primary/10 text-primary";
     }
@@ -209,6 +349,12 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
               <span className="text-[9px] text-green-400 font-mono">ACTIVE</span>
+            </span>
+          )}
+          {executing && (
+            <span className="flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+              <span className="text-[9px] text-blue-400 font-mono">EXECUTING</span>
             </span>
           )}
         </div>
@@ -369,11 +515,25 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         </Button>
         {connected && mint && (
           <div className="flex gap-1 ml-auto">
-            <Button size="sm" variant="outline" onClick={() => handleManualTrade("BUY")} className="text-[10px]" data-testid="button-manual-buy">
-              <ArrowUpRight className="w-3 h-3 mr-0.5" /> Buy
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleManualTrade("BUY")}
+              disabled={executing}
+              className="text-[10px]"
+              data-testid="button-manual-buy"
+            >
+              {executing ? <Loader2 className="w-3 h-3 mr-0.5 animate-spin" /> : <ArrowUpRight className="w-3 h-3 mr-0.5" />} Buy
             </Button>
-            <Button size="sm" variant="outline" onClick={() => handleManualTrade("SELL")} className="text-[10px]" data-testid="button-manual-sell">
-              <ArrowDownRight className="w-3 h-3 mr-0.5" /> Sell
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleManualTrade("SELL")}
+              disabled={executing}
+              className="text-[10px]"
+              data-testid="button-manual-sell"
+            >
+              {executing ? <Loader2 className="w-3 h-3 mr-0.5 animate-spin" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />} Sell
             </Button>
           </div>
         )}
@@ -407,7 +567,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
                   <span className="text-primary/70">{signal.amountSol} SOL</span>
                 )}
                 <span className={cn("px-1 py-0.5 rounded text-[8px]", getStatusColor(signal.status))}>
-                  {signal.status.replace("_", " ")}
+                  {signal.status.replace(/_/g, " ")}
                 </span>
                 <span className="text-muted-foreground/40 ml-auto">
                   {new Date(signal.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
