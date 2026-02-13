@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { VersionedTransaction, Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
@@ -73,7 +73,6 @@ interface AutoTraderProps {
 export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoTraderProps) {
   const { toast } = useToast();
   const { publicKey, signTransaction, connected } = useWallet();
-  const { connection } = useConnection();
 
   const [botEnabled, setBotEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -260,20 +259,28 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           description: "Signing with your private key",
         });
         transaction.sign([keypair]);
-        txSignature = await connection.sendRawTransaction(transaction.serialize(), {
-          skipPreflight: true,
-          maxRetries: 3,
-        });
+        const serialized = transaction.serialize();
+        const base64Tx = btoa(Array.from(serialized).map(b => String.fromCharCode(b)).join(""));
+        const sendRes = await apiRequest("POST", "/api/solana/sendTransaction", { transaction: base64Tx });
+        const sendData = await sendRes.json();
+        if (!sendData.signature) {
+          throw new Error(sendData.message || "Transaction send failed");
+        }
+        txSignature = sendData.signature;
       } else {
         toast({
           title: `${action} — Sign in Phantom`,
           description: "Please approve the transaction in your wallet",
         });
         const signedTx = await signTransaction!(transaction);
-        txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
-          skipPreflight: true,
-          maxRetries: 3,
-        });
+        const serialized = signedTx.serialize();
+        const base64Tx = btoa(Array.from(serialized).map(b => String.fromCharCode(b)).join(""));
+        const sendRes = await apiRequest("POST", "/api/solana/sendTransaction", { transaction: base64Tx });
+        const sendData = await sendRes.json();
+        if (!sendData.signature) {
+          throw new Error(sendData.message || "Transaction send failed");
+        }
+        txSignature = sendData.signature;
       }
 
       let tokenAmount = 0;
@@ -327,7 +334,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
     }
 
     setExecuting(false);
-  }, [mint, isReady, effectivePublicKey, signTransaction, connection, tokenSymbol, currentNci, currentBand, tradeAmountSol, slippageBps, executing, walletAddress]);
+  }, [mint, isReady, effectivePublicKey, signTransaction, tokenSymbol, currentNci, currentBand, tradeAmountSol, slippageBps, executing, walletAddress]);
 
   useEffect(() => {
     if (!botEnabled || !currentEval || !isReady || !mint || executing) return;
