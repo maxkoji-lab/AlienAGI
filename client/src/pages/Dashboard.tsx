@@ -4,7 +4,7 @@ import { MetricValue } from "@/components/MetricValue";
 import { NciChart } from "@/components/NciChart";
 import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
-import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio, Power, PowerOff } from "lucide-react";
+import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio, Power, PowerOff, Flame } from "lucide-react";
 import alienBg from "@assets/VS_1770881377474.png";
 
 import { motion } from "framer-motion";
@@ -201,6 +201,16 @@ export default function Dashboard() {
     queryKey: ["/api/x-monitor/status"],
     enabled: !!analysis,
     refetchInterval: 15000,
+  });
+
+  const { data: burnHistory = [], isLoading: loadingBurns } = useQuery<{ id: number; ts: string; amountTokens: number; txSignature: string | null; source: string; status: string }[]>({
+    queryKey: ["/api/treasury/burns"],
+    refetchInterval: 30000,
+  });
+
+  const { data: treasuryStats, isLoading: loadingStats } = useQuery<{ totalBuybackSol: number; totalBuybackTokens: number; totalBurned: number; totalRewardsDistributed: number; activeCampaigns: number }>({
+    queryKey: ["/api/treasury/stats"],
+    refetchInterval: 30000,
   });
 
   const handleLiveUpdate = useCallback((data: ScannerLiveData) => {
@@ -802,6 +812,127 @@ export default function Dashboard() {
                   generatedAt={brief?.generatedAt || new Date().toISOString()}
                 />
               )}
+            </TerminalCard>
+          </div>
+        </div>
+
+        {/* Burn Tracker */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <TerminalCard title="Burn Stats" delay={0.7}>
+              {loadingStats ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary/50" />
+                  <span className="text-xs font-mono text-muted-foreground/50">LOADING BURN DATA...</span>
+                </div>
+              ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md bg-destructive/10 border border-destructive/30 flex items-center justify-center">
+                    <Flame className="w-5 h-5 text-destructive" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground" data-testid="label-total-burned">Total Burned</div>
+                    <div className="text-xl font-mono text-destructive" data-testid="text-total-burned">
+                      {(treasuryStats?.totalBurned || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="border border-primary/10 rounded-md p-3">
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground" data-testid="label-burn-count">Burn Events</div>
+                    <div className="text-lg font-mono text-primary" data-testid="text-burn-count">{burnHistory.length}</div>
+                  </div>
+                  <div className="border border-primary/10 rounded-md p-3">
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground" data-testid="label-burn-executed">Executed</div>
+                    <div className="text-lg font-mono text-primary" data-testid="text-burn-executed">{burnHistory.filter(b => b.status === "executed").length}</div>
+                  </div>
+                </div>
+                <div className="border border-primary/10 rounded-md p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1" data-testid="label-burn-sources">Burn Sources</div>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(new Set(burnHistory.map(b => b.source))).map(source => (
+                      <span key={source} className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive" data-testid={`text-burn-source-${source}`}>
+                        {source}
+                      </span>
+                    ))}
+                    {burnHistory.length === 0 && <span className="text-[10px] text-muted-foreground/50" data-testid="text-no-burns">No burns recorded yet</span>}
+                  </div>
+                </div>
+              </div>
+              )}
+            </TerminalCard>
+          </div>
+          <div className="lg:col-span-2">
+            <TerminalCard title="Burn History" delay={0.8}>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {loadingBurns ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary/50" />
+                    <span className="text-xs font-mono text-muted-foreground/50">LOADING BURN HISTORY...</span>
+                  </div>
+                ) : burnHistory.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
+                    <Flame className="w-8 h-8 mb-2 opacity-30" />
+                    <span className="text-xs font-mono" data-testid="text-burn-empty">NO BURN EVENTS RECORDED</span>
+                    <span className="text-[10px] font-mono mt-1" data-testid="text-burn-empty-hint">Burns will appear here when executed</span>
+                  </div>
+                ) : (
+                  <table className="w-full text-xs font-mono">
+                    <thead>
+                      <tr className="border-b border-primary/20 text-muted-foreground">
+                        <th className="text-left py-2 px-2" data-testid="th-burn-date">Date</th>
+                        <th className="text-right py-2 px-2" data-testid="th-burn-amount">Amount</th>
+                        <th className="text-center py-2 px-2" data-testid="th-burn-source">Source</th>
+                        <th className="text-center py-2 px-2" data-testid="th-burn-status">Status</th>
+                        <th className="text-right py-2 px-2" data-testid="th-burn-tx">Tx</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {burnHistory.map((burn) => (
+                        <tr key={burn.id} className="border-b border-primary/5" data-testid={`row-burn-${burn.id}`}>
+                          <td className="py-2 px-2 text-muted-foreground" data-testid={`text-burn-date-${burn.id}`}>
+                            {new Date(burn.ts).toLocaleDateString()}
+                          </td>
+                          <td className="py-2 px-2 text-right text-destructive" data-testid={`text-burn-amount-${burn.id}`}>
+                            {burn.amountTokens.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px]" data-testid={`text-burn-source-${burn.id}`}>
+                              {burn.source}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded text-[10px]",
+                              burn.status === "executed" ? "bg-primary/20 text-primary" :
+                              burn.status === "proposed" ? "bg-muted text-muted-foreground" :
+                              "bg-muted text-muted-foreground"
+                            )} data-testid={`text-burn-status-${burn.id}`}>
+                              {burn.status}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-right">
+                            {burn.txSignature ? (
+                              <a
+                                href={`https://solscan.io/tx/${burn.txSignature}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary/70 hover:text-primary"
+                                data-testid={`link-burn-tx-${burn.id}`}
+                              >
+                                {burn.txSignature.slice(0, 8)}...
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground/30" data-testid={`text-burn-notx-${burn.id}`}>--</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </TerminalCard>
           </div>
         </div>
