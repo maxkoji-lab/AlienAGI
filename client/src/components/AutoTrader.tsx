@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { VersionedTransaction } from "@solana/web3.js";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,12 +18,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
-  Wallet,
   Activity,
   ExternalLink,
-  KeyRound,
-  CheckCircle2,
-  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
 } from "lucide-react";
 
 interface TradeSignal {
@@ -35,6 +37,8 @@ interface TradeSignal {
   walletAddress: string | null;
   txSignature: string | null;
   status: string;
+  priceAtTrade: number | null;
+  tokenAmount: number | null;
 }
 
 interface EvalResult {
@@ -46,10 +50,13 @@ interface EvalResult {
   shouldExecute: boolean;
 }
 
-interface WalletStatus {
-  configured: boolean;
-  address: string | null;
-  error?: string;
+interface PnLData {
+  totalSpentSol: number;
+  totalReceivedSol: number;
+  realizedPnlSol: number;
+  costBasisSol: number;
+  hasOpenPosition: boolean;
+  tradeCount: number;
 }
 
 interface AutoTraderProps {
@@ -61,6 +68,8 @@ interface AutoTraderProps {
 
 export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoTraderProps) {
   const { toast } = useToast();
+  const { publicKey, signTransaction, connected } = useWallet();
+  const { connection } = useConnection();
 
   const [botEnabled, setBotEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -71,22 +80,26 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   const [slippageBps, setSlippageBps] = useState(150);
   const evalIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [executing, setExecuting] = useState(false);
-
   const [currentEval, setCurrentEval] = useState<EvalResult | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
 
-  const { data: walletStatus } = useQuery<WalletStatus>({
-    queryKey: ["/api/trade/wallet"],
-    refetchInterval: 30000,
-  });
-
-  const walletConfigured = walletStatus?.configured ?? false;
-  const walletAddress = walletStatus?.address ?? null;
+  const walletAddress = publicKey?.toBase58() || null;
 
   const { data: tradeHistory = [] } = useQuery<TradeSignal[]>({
     queryKey: [`/api/trade-signals?mint=${mint}`],
     enabled: !!mint,
     refetchInterval: 10000,
+  });
+
+  const { data: pnlData } = useQuery<PnLData>({
+    queryKey: ["/api/trade/pnl", mint, walletAddress],
+    enabled: !!mint && !!walletAddress,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const res = await fetch(`/api/trade/pnl?mint=${mint}&wallet=${walletAddress}`);
+      if (!res.ok) throw new Error("PnL fetch failed");
+      return res.json();
+    },
   });
 
   const evaluateNci = useCallback(async () => {
@@ -113,7 +126,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   }, [mint, currentNci, evaluateNci]);
 
   useEffect(() => {
-    if (botEnabled && mint && walletConfigured && currentNci !== null) {
+    if (botEnabled && mint && connected && currentNci !== null) {
       evalIntervalRef.current = setInterval(() => {
         evaluateNci();
       }, 5000);
@@ -126,70 +139,116 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         evalIntervalRef.current = null;
       }
     }
-  }, [botEnabled, mint, walletConfigured, currentNci, evaluateNci]);
+  }, [botEnabled, mint, connected, currentNci, evaluateNci]);
 
   const executeTrade = useCallback(async (action: string) => {
-    if (!mint || !walletConfigured || executing) return;
+    if (!mint || !connected || !publicKey || !signTransaction || executing) return;
     setExecuting(true);
 
     let signalId: number | null = null;
+    const SOL_MINT = "So11111111111111111111111111111111111111112";
+    const LAMPORTS_PER_SOL = 1_000_000_000;
+    const amountSol = parseFloat(tradeAmountSol) || 0.1;
 
     try {
+      const isBuy = action === "BUY";
+      const inputMint = isBuy ? SOL_MINT : mint;
+      const outputMint = isBuy ? mint : SOL_MINT;
+
+      let amount: number;
+      if (isBuy) {
+        amount = Math.floor(amountSol * LAMPORTS_PER_SOL);
+      } else {
+        const reverseQuoteRes = await fetch(`/api/jupiter/quote?inputMint=${SOL_MINT}&outputMint=${mint}&amount=${Math.floor(amountSol * LAMPORTS_PER_SOL)}&slippageBps=${slippageBps}`);
+        if (reverseQuoteRes.ok) {
+          const reverseQuote = await reverseQuoteRes.json();
+          amount = parseInt(reverseQuote.outAmount || "0", 10);
+        } else {
+          toast({ title: "Failed to calculate sell amount", variant: "destructive" });
+          setExecuting(false);
+          return;
+        }
+      }
+
+      toast({
+        title: `${action} — Getting Quote`,
+        description: `${amountSol} SOL via Jupiter`,
+      });
+
+      const quoteRes = await fetch(`/api/jupiter/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`);
+      if (!quoteRes.ok) {
+        const err = await quoteRes.json();
+        toast({ title: "Quote failed", description: err.message, variant: "destructive" });
+        setExecuting(false);
+        return;
+      }
+      const quoteData = await quoteRes.json();
+
+      const swapRes = await apiRequest("POST", "/api/jupiter/swap", {
+        quoteResponse: quoteData,
+        userPublicKey: publicKey.toBase58(),
+      });
+      const swapData = await swapRes.json();
+
+      if (!swapData.swapTransaction) {
+        toast({ title: "Swap build failed", variant: "destructive" });
+        setExecuting(false);
+        return;
+      }
+
+      const binaryStr = atob(swapData.swapTransaction);
+      const txBytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        txBytes[i] = binaryStr.charCodeAt(i);
+      }
+      const transaction = VersionedTransaction.deserialize(txBytes);
+
+      toast({
+        title: `${action} — Sign in Phantom`,
+        description: "Please approve the transaction in your wallet",
+      });
+
+      const signedTx = await signTransaction(transaction);
+
+      const txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: true,
+        maxRetries: 3,
+      });
+
+      let tokenAmount = 0;
+      let priceAtTrade = 0;
+      try {
+        if (isBuy && quoteData.outAmount) {
+          tokenAmount = parseFloat(quoteData.outAmount);
+        } else if (!isBuy) {
+          tokenAmount = amount;
+        }
+        if (tokenAmount > 0 && amountSol > 0) {
+          priceAtTrade = amountSol / tokenAmount;
+        }
+      } catch {}
+
       const signalRes = await apiRequest("POST", "/api/trade-signals", {
         mint,
         tokenSymbol: tokenSymbol || null,
         action,
         nciAtSignal: currentNci || 0,
         band: currentBand || "unknown",
-        amountSol: parseFloat(tradeAmountSol) || 0.1,
-        walletAddress: walletAddress,
-        status: "executing",
+        amountSol,
+        walletAddress: publicKey.toBase58(),
+        txSignature,
+        status: "submitted",
+        priceAtTrade: priceAtTrade || null,
+        tokenAmount: tokenAmount || null,
       });
-      const signal = await signalRes.json();
-      signalId = signal.id;
+      await signalRes.json();
       queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trade/pnl", mint, walletAddress] });
 
       toast({
-        title: `${action} — Executing Trade`,
-        description: `${parseFloat(tradeAmountSol) || 0.1} SOL via Jupiter — signing server-side`,
+        title: `${action} Submitted`,
+        description: `TX: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}`,
       });
-
-      const execRes = await fetch("/api/trade/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mint,
-          action,
-          amountSol: parseFloat(tradeAmountSol) || 0.1,
-          slippageBps,
-        }),
-      });
-
-      const result = await execRes.json();
-
-      if (execRes.ok && result.txSignature) {
-        await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
-          status: "submitted",
-          txSignature: result.txSignature,
-        });
-        queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
-
-        toast({
-          title: `${action} Submitted`,
-          description: `TX: ${result.txSignature.slice(0, 8)}...${result.txSignature.slice(-8)}`,
-        });
-      } else {
-        await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
-          status: "failed",
-        });
-        queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
-
-        toast({
-          title: `${action} Failed`,
-          description: result.message || "Trade execution failed",
-          variant: "destructive",
-        });
-      }
     } catch (e: any) {
       if (signalId) {
         await apiRequest("PATCH", `/api/trade-signals/${signalId}/status`, {
@@ -197,18 +256,20 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         }).catch(() => {});
         queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
       }
-      toast({
-        title: `${action} Failed`,
-        description: e?.message || "Trade execution failed",
-        variant: "destructive",
-      });
+
+      const msg = e?.message || "Trade failed";
+      if (msg.includes("User rejected")) {
+        toast({ title: "Transaction cancelled", description: "You rejected the transaction in your wallet" });
+      } else {
+        toast({ title: `${action} Failed`, description: msg, variant: "destructive" });
+      }
     }
 
     setExecuting(false);
-  }, [mint, walletConfigured, walletAddress, tokenSymbol, currentNci, currentBand, tradeAmountSol, slippageBps, executing]);
+  }, [mint, connected, publicKey, signTransaction, connection, tokenSymbol, currentNci, currentBand, tradeAmountSol, slippageBps, executing, walletAddress]);
 
   useEffect(() => {
-    if (!botEnabled || !currentEval || !walletConfigured || !mint || executing) return;
+    if (!botEnabled || !currentEval || !connected || !mint || executing) return;
 
     const todayExecutedSignals = tradeHistory.filter(s => {
       const signalDate = new Date(s.ts).toDateString();
@@ -229,15 +290,15 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
 
       executeTrade(currentEval.action);
     }
-  }, [currentEval, botEnabled, walletConfigured, mint, tradeHistory, maxTradesPerDay, executing, executeTrade]);
+  }, [currentEval, botEnabled, connected, mint, tradeHistory, maxTradesPerDay, executing, executeTrade]);
 
   const handleManualTrade = async (action: string) => {
     if (!mint) {
       toast({ title: "Scan a token first", variant: "destructive" });
       return;
     }
-    if (!walletConfigured) {
-      toast({ title: "Wallet not configured", description: "Add your WALLET_PRIVATE_KEY in the Secrets tab", variant: "destructive" });
+    if (!connected) {
+      toast({ title: "Connect your Phantom wallet first", variant: "destructive" });
       return;
     }
     await executeTrade(action);
@@ -279,6 +340,11 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
     }
   };
 
+  const formatSol = (v: number) => {
+    if (Math.abs(v) < 0.0001) return "0";
+    return v.toFixed(4);
+  };
+
   return (
     <div className="h-full flex flex-col gap-3" data-testid="section-auto-trader">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -310,43 +376,63 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        {walletConfigured ? (
-          <div className="flex items-center gap-2 px-2.5 py-1 border border-green-500/30 rounded-md bg-green-500/10">
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-            <span className="text-[10px] font-mono text-green-400">Wallet Connected</span>
-            {walletAddress && (
-              <span className="text-[9px] font-mono text-muted-foreground" data-testid="text-wallet-address">
-                {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 px-2.5 py-1 border border-yellow-500/30 rounded-md bg-yellow-500/10">
-            <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
-            <span className="text-[10px] font-mono text-yellow-400">No Wallet Key</span>
-          </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="[&_button]:!h-7 [&_button]:!text-[10px] [&_button]:!font-mono [&_button]:!rounded-md [&_button]:!px-3 [&_button]:!border-primary/30 [&_button]:!bg-black/40">
+          <WalletMultiButton />
+        </div>
+        {connected && walletAddress && (
+          <span className="text-[9px] font-mono text-muted-foreground" data-testid="text-wallet-address">
+            {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+          </span>
         )}
       </div>
+
+      {connected && mint && pnlData && pnlData.tradeCount > 0 && (
+        <div className="border border-primary/10 rounded-md p-3 bg-black/20" data-testid="section-pnl">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">P&L Summary</span>
+            <span className="text-[9px] font-mono text-muted-foreground ml-auto">{pnlData.tradeCount} trades</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="text-center">
+              <div className="text-[9px] font-mono text-muted-foreground uppercase">Spent</div>
+              <div className="text-xs font-mono text-red-400" data-testid="text-pnl-spent">
+                {formatSol(pnlData.totalSpentSol)} SOL
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-[9px] font-mono text-muted-foreground uppercase">Received</div>
+              <div className="text-xs font-mono text-green-400" data-testid="text-pnl-received">
+                {formatSol(pnlData.totalReceivedSol)} SOL
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-[9px] font-mono text-muted-foreground uppercase">Net P&L</div>
+              <div className={cn(
+                "text-xs font-mono font-bold flex items-center justify-center gap-0.5",
+                pnlData.realizedPnlSol >= 0 ? "text-green-400" : "text-red-400"
+              )} data-testid="text-pnl-realized">
+                {pnlData.realizedPnlSol >= 0 ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : (
+                  <TrendingDown className="w-3 h-3" />
+                )}
+                {pnlData.realizedPnlSol >= 0 ? "+" : ""}{formatSol(pnlData.realizedPnlSol)} SOL
+              </div>
+            </div>
+          </div>
+          {pnlData.hasOpenPosition && pnlData.costBasisSol > 0 && (
+            <div className="mt-2 pt-2 border-t border-primary/10 flex items-center justify-center">
+              <span className="text-[9px] font-mono text-yellow-400">Open position — cost basis: {formatSol(pnlData.costBasisSol)} SOL</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {showSettings && (
         <div className="border border-primary/10 rounded-md p-3 space-y-3 bg-black/20">
           <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Bot Configuration</div>
-
-          {!walletConfigured && (
-            <div className="border border-yellow-500/20 rounded-md p-2 bg-yellow-500/5 mb-2">
-              <div className="flex items-center gap-2 mb-1">
-                <KeyRound className="w-3.5 h-3.5 text-yellow-400" />
-                <span className="text-[10px] font-mono text-yellow-300">Private Key Required</span>
-              </div>
-              <p className="text-[9px] font-mono text-muted-foreground leading-relaxed">
-                Add your wallet's base58 private key as <span className="text-primary">WALLET_PRIVATE_KEY</span> in the Secrets tab.
-                This enables direct trade execution without wallet popups.
-                Use a dedicated trading wallet, not your main holdings.
-              </p>
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[9px] font-mono text-muted-foreground uppercase">Buy NCI Threshold</label>
@@ -409,7 +495,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           </div>
           <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60">
             <ShieldCheck className="w-3 h-3" />
-            <span>Trades execute directly via server-side signing</span>
+            <span>Trades signed by your Phantom wallet — you approve each transaction</span>
           </div>
         </div>
       )}
@@ -455,13 +541,13 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Button
           size="sm"
           variant={botEnabled ? "destructive" : "default"}
           onClick={() => {
-            if (!walletConfigured) {
-              toast({ title: "Add WALLET_PRIVATE_KEY first", description: "Open Settings for instructions", variant: "destructive" });
+            if (!connected) {
+              toast({ title: "Connect your Phantom wallet first", variant: "destructive" });
               return;
             }
             if (!mint) {
@@ -478,7 +564,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         >
           {botEnabled ? <><Pause className="w-3 h-3 mr-1" /> Stop Bot</> : <><Play className="w-3 h-3 mr-1" /> Start Bot</>}
         </Button>
-        {walletConfigured && mint && (
+        {connected && mint && (
           <div className="flex gap-1 ml-auto">
             <Button
               size="sm"
@@ -513,13 +599,13 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
             <div className="flex flex-col items-center justify-center py-4 text-muted-foreground/40">
               <Zap className="w-5 h-5 mb-1 opacity-30" />
               <span className="text-[10px] font-mono" data-testid="text-no-trades">NO TRADES YET</span>
-              <span className="text-[9px] font-mono mt-0.5">Signals will appear when bot is active</span>
+              <span className="text-[9px] font-mono mt-0.5">Connect wallet & start bot to trade</span>
             </div>
           ) : (
             tradeHistory.map((signal) => (
               <div
                 key={signal.id}
-                className="flex items-center gap-2 px-2 py-1.5 border border-primary/5 rounded-md bg-black/10 text-[10px] font-mono"
+                className="flex items-center gap-2 px-2 py-1.5 border border-primary/5 rounded-md bg-black/10 text-[10px] font-mono flex-wrap"
                 data-testid={`row-trade-${signal.id}`}
               >
                 <span className={cn("font-bold", getActionColor(signal.action))}>
@@ -553,20 +639,6 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           )}
         </div>
       </div>
-
-      {!walletConfigured && (
-        <div className="border border-purple-500/20 rounded-md p-2 bg-purple-500/5">
-          <div className="flex items-center gap-2">
-            <KeyRound className="w-4 h-4 text-purple-400" />
-            <div>
-              <div className="text-[10px] font-mono text-purple-300">Add Trading Wallet Key</div>
-              <div className="text-[9px] font-mono text-muted-foreground">
-                Add <span className="text-primary">WALLET_PRIVATE_KEY</span> in Secrets tab for direct trade execution
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
