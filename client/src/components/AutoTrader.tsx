@@ -146,12 +146,12 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         band: currentBand || "unknown",
         amountSol: parseFloat(tradeAmountSol) || 0.1,
         walletAddress: publicKey.toBase58(),
-        status: "pending_approval",
+        status: "signal_generated",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/trade-signals", mint] });
+      queryClient.invalidateQueries({ queryKey: [`/api/trade-signals?mint=${mint}`] });
       toast({
         title: `${action} Signal Generated`,
-        description: `NCI: ${currentNci?.toFixed(1)} — Awaiting Phantom wallet approval`,
+        description: `NCI: ${currentNci?.toFixed(1)} — Signal recorded`,
       });
     } catch (e) {
       console.error("Failed to record trade signal:", e);
@@ -191,6 +191,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   const getStatusColor = (status: string) => {
     switch (status) {
       case "executed": return "bg-green-500/20 text-green-400";
+      case "signal_generated": return "bg-cyan-500/20 text-cyan-400";
       case "pending_approval": return "bg-yellow-500/20 text-yellow-400";
       case "rejected": return "bg-red-500/20 text-red-400";
       case "expired": return "bg-muted text-muted-foreground";
