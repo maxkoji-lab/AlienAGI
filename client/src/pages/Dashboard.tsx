@@ -5,6 +5,7 @@ import { NciChart } from "@/components/NciChart";
 import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio, Power, PowerOff } from "lucide-react";
+import { AutoTrader } from "@/components/AutoTrader";
 import alienBg from "@assets/VS_1770881377474.png";
 
 import { motion } from "framer-motion";
@@ -773,10 +774,12 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <TerminalCard title="Adaptive Learning, Intelligence Engine Network (A.L.I.E.N)" className="h-full min-h-[400px]" delay={0.5}>
-              <div className="h-full flex flex-col items-center justify-center gap-2">
-                <span className="text-xs font-mono text-muted-foreground/50 uppercase tracking-widest">Trade with us! Coming soon</span>
-                <span className="text-[10px] font-mono text-muted-foreground/30 tracking-wider">Alienlovesyou</span>
-              </div>
+              <AutoTrader
+                mint={analysis?.mint || null}
+                tokenSymbol={analysis?.profile?.symbol || null}
+                currentNci={scannerLive ? scannerLive.nci : (analysis ? parseFloat(analysis.nciRaw) : null)}
+                currentBand={scannerLive?.band || analysis?.band || null}
+              />
             </TerminalCard>
           </div>
 

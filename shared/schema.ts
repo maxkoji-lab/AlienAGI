@@ -59,6 +59,20 @@ export const rewardClaims = pgTable("reward_claims", {
   status: text("status").notNull().default("pending"),
 });
 
+export const tradeSignals = pgTable("trade_signals", {
+  id: serial("id").primaryKey(),
+  ts: timestamp("ts").defaultNow(),
+  mint: text("mint").notNull(),
+  tokenSymbol: text("token_symbol"),
+  action: text("action").notNull(),
+  nciAtSignal: real("nci_at_signal").notNull(),
+  band: text("band").notNull(),
+  amountSol: real("amount_sol"),
+  walletAddress: text("wallet_address"),
+  txSignature: text("tx_signature"),
+  status: text("status").notNull().default("pending"),
+});
+
 export const insertMetricSchema = createInsertSchema(metrics).omit({ id: true, ts: true });
 export const insertWhaleStateSchema = createInsertSchema(whaleState);
 export const insertBuybackSchema = createInsertSchema(buybacks).omit({ id: true, ts: true });
@@ -78,3 +92,7 @@ export type RewardCampaign = typeof rewardCampaigns.$inferSelect;
 export type InsertRewardCampaign = z.infer<typeof insertRewardCampaignSchema>;
 export type RewardClaim = typeof rewardClaims.$inferSelect;
 export type InsertRewardClaim = z.infer<typeof insertRewardClaimSchema>;
+
+export const insertTradeSignalSchema = createInsertSchema(tradeSignals).omit({ id: true, ts: true });
+export type TradeSignal = typeof tradeSignals.$inferSelect;
+export type InsertTradeSignal = z.infer<typeof insertTradeSignalSchema>;
