@@ -426,9 +426,12 @@ export async function registerRoutes(
     res.json({ action, confidence, nci, band, posture, shouldExecute });
   });
 
-  app.post("/api/jupiter/quote", async (req, res) => {
+  async function handleJupiterQuote(req: any, res: any) {
     try {
-      const { inputMint, outputMint, amount, slippageBps } = req.body;
+      const inputMint = req.query.inputMint || req.body?.inputMint;
+      const outputMint = req.query.outputMint || req.body?.outputMint;
+      const amount = req.query.amount || req.body?.amount;
+      const slippageBps = req.query.slippageBps || req.body?.slippageBps;
       if (!inputMint || !outputMint || !amount) {
         return res.status(400).json({ message: "inputMint, outputMint, amount required" });
       }
@@ -448,7 +451,9 @@ export async function registerRoutes(
     } catch (e: any) {
       res.status(500).json({ message: e.message || "Jupiter quote failed" });
     }
-  });
+  }
+  app.get("/api/jupiter/quote", handleJupiterQuote);
+  app.post("/api/jupiter/quote", handleJupiterQuote);
 
   app.post("/api/jupiter/swap", async (req, res) => {
     try {
