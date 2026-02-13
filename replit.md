@@ -4,7 +4,7 @@
 ALIENAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
 
 ## Recent Changes
-- 2026-02-13: Added NCI-powered auto-trading bot (A.L.I.E.N section) — Phantom wallet connect, NCI-based BUY/SELL/HOLD signals, configurable thresholds, trade history tracking, manual and auto trade modes
+- 2026-02-13: Added NCI-powered auto-trading bot (A.L.I.E.N section) — direct server-side trade execution via private key signing (Jupiter V6 swap), NCI-based BUY/SELL/HOLD signals, configurable thresholds/slippage, trade history tracking, manual and auto trade modes
 - 2026-02-13: Removed burn tracker section from dashboard (user requested removal)
 - 2026-02-12: Added DexScreener token profile integration — fetches name, ticker, description/lore, social links, price, market cap from DexScreener API (no key required)
 - 2026-02-12: Added X/Twitter influencer monitoring loop — background service checks for mentions from accounts with >10k followers, stores alerts (requires X_BEARER_TOKEN)
@@ -54,6 +54,7 @@ ALIENAGI is a fullstack Solana token metrics tracking application with an integr
 - `NOOP_MINT` - Token mint address (set to actual address when live)
 - `SESSION_SECRET` - Express session secret
 - `DATABASE_URL` - PostgreSQL connection (auto-configured)
+- `WALLET_PRIVATE_KEY` - Base58 Solana wallet private key for direct trade execution (server-side signing via Jupiter)
 - BabyAGI 3 uses its own config via `babyagi3/config.yaml` and env vars
 
 ### Workflows
