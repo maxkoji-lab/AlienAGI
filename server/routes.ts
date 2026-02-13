@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { runOperatorLoop, buildBrief, bandAndPosture, getHoldersSnapshot, computeNciRaw } from "./services/operator";
-import { insertBuybackSchema, insertBurnSchema, insertRewardCampaignSchema, insertRewardClaimSchema } from "@shared/schema";
+import { insertBuybackSchema, insertBurnSchema, insertRewardCampaignSchema, insertRewardClaimSchema, insertTradeSignalSchema } from "@shared/schema";
 import { z } from "zod";
 import { fetchTokenProfile } from "./services/dexscreener";
 import { startMonitoring, stopMonitoring, getAlerts, clearAlerts, getMonitorStatus } from "./services/xmonitor";
@@ -366,6 +366,64 @@ export async function registerRoutes(
   app.post("/api/x-monitor/stop", (_req, res) => {
     stopMonitoring();
     res.json({ stopped: true });
+  });
+
+  app.get("/api/trade-signals", async (req, res) => {
+    const mint = typeof req.query.mint === "string" ? req.query.mint : undefined;
+    const signals = await storage.getTradeSignals(mint);
+    res.json(signals);
+  });
+
+  app.post("/api/trade-signals", async (req, res) => {
+    const parsed = insertTradeSignalSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const signal = await storage.insertTradeSignal(parsed.data);
+    res.status(201).json(signal);
+  });
+
+  app.patch("/api/trade-signals/:id/status", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { status, txSignature } = req.body;
+    if (!status) return res.status(400).json({ message: "status required" });
+    const updated = await storage.updateTradeSignalStatus(id, status, txSignature);
+    if (!updated) return res.status(404).json({ message: "Trade signal not found" });
+    res.json(updated);
+  });
+
+  app.post("/api/trade-signals/evaluate", async (req, res) => {
+    const schema = z.object({
+      mint: z.string().min(30).max(50),
+      nci: z.number(),
+      buyThreshold: z.number().min(0).max(100).optional().default(70),
+      sellThreshold: z.number().min(0).max(100).optional().default(25),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+
+    const { nci, buyThreshold, sellThreshold } = parsed.data;
+    const { band, posture } = bandAndPosture(nci);
+
+    let action: string;
+    let confidence = 0;
+    let shouldExecute = false;
+
+    if (nci >= buyThreshold) {
+      action = "BUY";
+      confidence = Math.min(100, Math.round(((nci - buyThreshold) / (100 - buyThreshold)) * 100));
+      shouldExecute = true;
+    } else if (nci <= sellThreshold) {
+      action = "SELL";
+      confidence = Math.min(100, Math.round(((sellThreshold - nci) / sellThreshold) * 100));
+      shouldExecute = true;
+    } else if (nci >= 50) {
+      action = "HOLD";
+      confidence = Math.round(((nci - sellThreshold) / (buyThreshold - sellThreshold)) * 100);
+    } else {
+      action = "HOLD";
+      confidence = Math.round(((nci - sellThreshold) / (buyThreshold - sellThreshold)) * 100);
+    }
+
+    res.json({ action, confidence, nci, band, posture, shouldExecute });
   });
 
   app.get("/api/token-profile/:mint", async (req, res) => {

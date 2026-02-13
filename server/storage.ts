@@ -1,13 +1,14 @@
 import { db } from "./db";
 import {
-  metrics, whaleState, buybacks, burns, rewardCampaigns, rewardClaims,
+  metrics, whaleState, buybacks, burns, rewardCampaigns, rewardClaims, tradeSignals,
   type InsertMetric, type InsertWhaleState, type Metric, type WhaleState,
   type InsertBuyback, type Buyback,
   type InsertBurn, type Burn,
   type InsertRewardCampaign, type RewardCampaign,
   type InsertRewardClaim, type RewardClaim,
+  type InsertTradeSignal, type TradeSignal,
 } from "@shared/schema";
-import { eq, desc, lte } from "drizzle-orm";
+import { eq, desc, lte, and } from "drizzle-orm";
 
 export interface IStorage {
   insertMetric(metric: InsertMetric): Promise<Metric>;
@@ -34,6 +35,10 @@ export interface IStorage {
   insertRewardClaim(claim: InsertRewardClaim): Promise<RewardClaim>;
   getRewardClaims(campaignId: number): Promise<RewardClaim[]>;
   updateRewardClaimStatus(id: number, status: string, txSignature?: string): Promise<RewardClaim | undefined>;
+
+  insertTradeSignal(signal: InsertTradeSignal): Promise<TradeSignal>;
+  getTradeSignals(mint?: string, limit?: number): Promise<TradeSignal[]>;
+  updateTradeSignalStatus(id: number, status: string, txSignature?: string): Promise<TradeSignal | undefined>;
 
   getTreasuryStats(): Promise<{
     totalBuybackSol: number;
@@ -201,6 +206,38 @@ export class DatabaseStorage implements IStorage {
       .update(rewardClaims)
       .set(updateData)
       .where(eq(rewardClaims.id, id))
+      .returning();
+    return updated;
+  }
+
+  async insertTradeSignal(signal: InsertTradeSignal): Promise<TradeSignal> {
+    const [inserted] = await db.insert(tradeSignals).values(signal).returning();
+    return inserted;
+  }
+
+  async getTradeSignals(mint?: string, limit: number = 50): Promise<TradeSignal[]> {
+    if (mint) {
+      return await db
+        .select()
+        .from(tradeSignals)
+        .where(eq(tradeSignals.mint, mint))
+        .orderBy(desc(tradeSignals.ts))
+        .limit(limit);
+    }
+    return await db
+      .select()
+      .from(tradeSignals)
+      .orderBy(desc(tradeSignals.ts))
+      .limit(limit);
+  }
+
+  async updateTradeSignalStatus(id: number, status: string, txSignature?: string): Promise<TradeSignal | undefined> {
+    const updateData: Record<string, any> = { status };
+    if (txSignature) updateData.txSignature = txSignature;
+    const [updated] = await db
+      .update(tradeSignals)
+      .set(updateData)
+      .where(eq(tradeSignals.id, id))
       .returning();
     return updated;
   }
