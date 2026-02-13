@@ -71,6 +71,8 @@ export const tradeSignals = pgTable("trade_signals", {
   walletAddress: text("wallet_address"),
   txSignature: text("tx_signature"),
   status: text("status").notNull().default("pending"),
+  priceAtTrade: real("price_at_trade"),
+  tokenAmount: real("token_amount"),
 });
 
 export const insertMetricSchema = createInsertSchema(metrics).omit({ id: true, ts: true });
