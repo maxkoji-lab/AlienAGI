@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { VersionedTransaction } from "@solana/web3.js";
+import { VersionedTransaction, Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,9 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface TradeSignal {
@@ -82,8 +86,49 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   const [executing, setExecuting] = useState(false);
   const [currentEval, setCurrentEval] = useState<EvalResult | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
+  const [privateKeyInput, setPrivateKeyInput] = useState("");
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [privateKeyValid, setPrivateKeyValid] = useState<boolean | null>(null);
 
-  const walletAddress = publicKey?.toBase58() || null;
+  const getKeypairFromInput = useCallback((): Keypair | null => {
+    if (!privateKeyInput.trim()) return null;
+    try {
+      const trimmed = privateKeyInput.trim();
+      if (trimmed.startsWith("[")) {
+        const arr = JSON.parse(trimmed) as number[];
+        return Keypair.fromSecretKey(new Uint8Array(arr));
+      }
+      const decoded = bs58.decode(trimmed);
+      return Keypair.fromSecretKey(decoded);
+    } catch {
+      return null;
+    }
+  }, [privateKeyInput]);
+
+  useEffect(() => {
+    if (!privateKeyInput.trim()) {
+      setPrivateKeyValid(null);
+      return;
+    }
+    const kp = getKeypairFromInput();
+    setPrivateKeyValid(kp !== null);
+  }, [privateKeyInput, getKeypairFromInput]);
+
+  const usePrivateKey = privateKeyValid === true;
+  const keypairRef = useRef<Keypair | null>(null);
+  if (usePrivateKey) {
+    keypairRef.current = getKeypairFromInput();
+  } else {
+    keypairRef.current = null;
+  }
+
+  const effectivePublicKey = usePrivateKey && keypairRef.current
+    ? keypairRef.current.publicKey
+    : publicKey;
+  const effectiveWalletAddress = effectivePublicKey?.toBase58() || null;
+  const isReady = usePrivateKey ? !!keypairRef.current : (connected && !!publicKey && !!signTransaction);
+
+  const walletAddress = effectiveWalletAddress;
 
   const { data: tradeHistory = [] } = useQuery<TradeSignal[]>({
     queryKey: [`/api/trade-signals?mint=${mint}`],
@@ -142,13 +187,14 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   }, [botEnabled, mint, connected, currentNci, evaluateNci]);
 
   const executeTrade = useCallback(async (action: string) => {
-    if (!mint || !connected || !publicKey || !signTransaction || executing) return;
+    if (!mint || !isReady || !effectivePublicKey || executing) return;
     setExecuting(true);
 
     let signalId: number | null = null;
     const SOL_MINT = "So11111111111111111111111111111111111111112";
     const LAMPORTS_PER_SOL = 1_000_000_000;
     const amountSol = parseFloat(tradeAmountSol) || 0.1;
+    const keypair = keypairRef.current;
 
     try {
       const isBuy = action === "BUY";
@@ -190,7 +236,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
 
       const swapRes = await apiRequest("POST", "/api/jupiter/swap", {
         quoteResponse: quoteData,
-        userPublicKey: publicKey.toBase58(),
+        userPublicKey: effectivePublicKey.toBase58(),
       });
       const swapData = await swapRes.json();
 
@@ -207,17 +253,28 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       }
       const transaction = VersionedTransaction.deserialize(txBytes);
 
-      toast({
-        title: `${action} — Sign in Phantom`,
-        description: "Please approve the transaction in your wallet",
-      });
-
-      const signedTx = await signTransaction(transaction);
-
-      const txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: true,
-        maxRetries: 3,
-      });
+      let txSignature: string;
+      if (keypair) {
+        toast({
+          title: `${action} — Auto-signing`,
+          description: "Signing with your private key",
+        });
+        transaction.sign([keypair]);
+        txSignature = await connection.sendRawTransaction(transaction.serialize(), {
+          skipPreflight: true,
+          maxRetries: 3,
+        });
+      } else {
+        toast({
+          title: `${action} — Sign in Phantom`,
+          description: "Please approve the transaction in your wallet",
+        });
+        const signedTx = await signTransaction!(transaction);
+        txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
+          skipPreflight: true,
+          maxRetries: 3,
+        });
+      }
 
       let tokenAmount = 0;
       let priceAtTrade = 0;
@@ -239,7 +296,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         nciAtSignal: currentNci || 0,
         band: currentBand || "unknown",
         amountSol,
-        walletAddress: publicKey.toBase58(),
+        walletAddress: effectivePublicKey.toBase58(),
         txSignature,
         status: "submitted",
         priceAtTrade: priceAtTrade || null,
@@ -270,10 +327,10 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
     }
 
     setExecuting(false);
-  }, [mint, connected, publicKey, signTransaction, connection, tokenSymbol, currentNci, currentBand, tradeAmountSol, slippageBps, executing, walletAddress]);
+  }, [mint, isReady, effectivePublicKey, signTransaction, connection, tokenSymbol, currentNci, currentBand, tradeAmountSol, slippageBps, executing, walletAddress]);
 
   useEffect(() => {
-    if (!botEnabled || !currentEval || !connected || !mint || executing) return;
+    if (!botEnabled || !currentEval || !isReady || !mint || executing) return;
 
     const todayExecutedSignals = tradeHistory.filter(s => {
       const signalDate = new Date(s.ts).toDateString();
@@ -294,15 +351,15 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
 
       executeTrade(currentEval.action);
     }
-  }, [currentEval, botEnabled, connected, mint, tradeHistory, maxTradesPerDay, executing, executeTrade]);
+  }, [currentEval, botEnabled, isReady, mint, tradeHistory, maxTradesPerDay, executing, executeTrade]);
 
   const handleManualTrade = async (action: string) => {
     if (!mint) {
       toast({ title: "Scan a token first", variant: "destructive" });
       return;
     }
-    if (!connected) {
-      toast({ title: "Connect your Phantom wallet first", variant: "destructive" });
+    if (!isReady) {
+      toast({ title: "Enter a private key or connect Phantom wallet", variant: "destructive" });
       return;
     }
     await executeTrade(action);
@@ -380,18 +437,59 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="[&_button]:!h-7 [&_button]:!text-[10px] [&_button]:!font-mono [&_button]:!rounded-md [&_button]:!px-3 [&_button]:!border-primary/30 [&_button]:!bg-black/40">
-          <WalletMultiButton />
+      <div className="border border-primary/10 rounded-md p-3 bg-black/20 space-y-2">
+        <div className="flex items-center gap-2 mb-1">
+          <KeyRound className="w-3.5 h-3.5 text-primary" />
+          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Wallet Private Key</span>
+          {privateKeyValid === true && (
+            <span className="text-[9px] font-mono text-green-400 ml-auto">VALID</span>
+          )}
+          {privateKeyValid === false && (
+            <span className="text-[9px] font-mono text-red-400 ml-auto">INVALID</span>
+          )}
         </div>
-        {connected && walletAddress && (
-          <span className="text-[9px] font-mono text-muted-foreground" data-testid="text-wallet-address">
-            {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
-          </span>
+        <div className="flex items-center gap-1">
+          <div className="relative flex-1">
+            <Input
+              type={showPrivateKey ? "text" : "password"}
+              placeholder="Paste base58 or JSON array private key..."
+              value={privateKeyInput}
+              onChange={(e) => setPrivateKeyInput(e.target.value)}
+              className="h-7 text-xs font-mono pr-8"
+              data-testid="input-private-key"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPrivateKey(!showPrivateKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground"
+              data-testid="button-toggle-key-visibility"
+            >
+              {showPrivateKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+        {usePrivateKey && effectiveWalletAddress && (
+          <div className="flex items-center gap-1 text-[9px] font-mono text-green-400/80">
+            <ShieldCheck className="w-3 h-3" />
+            <span>Auto-sign active: {effectiveWalletAddress.slice(0, 6)}...{effectiveWalletAddress.slice(-4)}</span>
+          </div>
+        )}
+        {!usePrivateKey && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] font-mono text-muted-foreground/60">or connect Phantom:</span>
+            <div className="[&_button]:!h-7 [&_button]:!text-[10px] [&_button]:!font-mono [&_button]:!rounded-md [&_button]:!px-3 [&_button]:!border-primary/30 [&_button]:!bg-black/40">
+              <WalletMultiButton />
+            </div>
+            {connected && walletAddress && (
+              <span className="text-[9px] font-mono text-muted-foreground" data-testid="text-wallet-address">
+                {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
-      {connected && mint && pnlData && pnlData.tradeCount > 0 && (
+      {isReady && mint && pnlData && pnlData.tradeCount > 0 && (
         <div className="border border-primary/10 rounded-md p-3 bg-black/20" data-testid="section-pnl">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-3.5 h-3.5 text-primary" />
@@ -499,7 +597,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           </div>
           <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60">
             <ShieldCheck className="w-3 h-3" />
-            <span>Trades signed by your Phantom wallet — you approve each transaction</span>
+            <span>{usePrivateKey ? "Trades auto-signed with your private key" : "Trades signed by your Phantom wallet — you approve each transaction"}</span>
           </div>
         </div>
       )}
@@ -550,8 +648,8 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           size="sm"
           variant={botEnabled ? "destructive" : "default"}
           onClick={() => {
-            if (!connected) {
-              toast({ title: "Connect your Phantom wallet first", variant: "destructive" });
+            if (!isReady) {
+              toast({ title: "Enter a private key or connect Phantom wallet", variant: "destructive" });
               return;
             }
             if (!mint) {
@@ -568,7 +666,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         >
           {botEnabled ? <><Pause className="w-3 h-3 mr-1" /> Stop Bot</> : <><Play className="w-3 h-3 mr-1" /> Start Bot</>}
         </Button>
-        {connected && mint && (
+        {isReady && mint && (
           <div className="flex gap-1 ml-auto">
             <Button
               size="sm"
