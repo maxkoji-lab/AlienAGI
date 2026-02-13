@@ -273,17 +273,20 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
   useEffect(() => {
     if (!botEnabled || !currentEval || !connected || !publicKey || !mint || executing) return;
 
-    const todaySignals = tradeHistory.filter(s => {
+    const todayExecutedSignals = tradeHistory.filter(s => {
       const signalDate = new Date(s.ts).toDateString();
-      return signalDate === new Date().toDateString();
+      const isToday = signalDate === new Date().toDateString();
+      const wasExecuted = s.status === "submitted" || s.status === "executed" || s.status === "executing";
+      return isToday && wasExecuted;
     });
 
-    if (todaySignals.length >= maxTradesPerDay) return;
+    if (todayExecutedSignals.length >= maxTradesPerDay) return;
 
     if (currentEval.shouldExecute && (currentEval.action === "BUY" || currentEval.action === "SELL")) {
       const recentSameAction = tradeHistory.find(s => {
         const timeDiff = Date.now() - new Date(s.ts).getTime();
-        return s.action === currentEval.action && timeDiff < 60000;
+        const wasExecuted = s.status === "submitted" || s.status === "executed" || s.status === "executing";
+        return s.action === currentEval.action && timeDiff < 60000 && wasExecuted;
       });
       if (recentSameAction) return;
 
