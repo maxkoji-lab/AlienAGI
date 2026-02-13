@@ -807,12 +807,17 @@ export default function Dashboard() {
         </div>
 
         {/* Footer */}
-        <footer className="border-t border-primary/20 pt-6 mt-8 flex flex-col md:flex-row justify-between items-center text-xs text-muted-foreground font-mono">
-          <p>ALIENAGI OPERATOR TERMINAL // SYSTEM ID: XJ-9</p>
-          <div className="flex gap-4 mt-2 md:mt-0">
-            <span>LATENCY: 12ms</span>
-            <span>NODES: 4 Active</span>
-            <span className="text-primary">CONNECTED</span>
+        <footer className="border-t border-primary/20 pt-6 mt-8 flex flex-col items-center gap-3 text-xs text-muted-foreground font-mono">
+          <div className="flex flex-col md:flex-row justify-between items-center w-full gap-2">
+            <p>ALIENAGI OPERATOR TERMINAL // SYSTEM ID: XJ-9</p>
+            <div className="flex gap-4">
+              <span>LATENCY: 12ms</span>
+              <span>NODES: 4 Active</span>
+              <span className="text-primary">CONNECTED</span>
+            </div>
+          </div>
+          <div className="text-center text-primary/70 select-all" data-testid="text-contract-address">
+            ca: USDM2tPhZfXuL55ZmhU1KHPW2hLTwTwZbVh9teFpump
           </div>
         </footer>
 
