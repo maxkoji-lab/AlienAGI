@@ -155,16 +155,25 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       const inputMint = isBuy ? SOL_MINT : mint;
       const outputMint = isBuy ? mint : SOL_MINT;
 
+      const JUPITER_API = "https://quote-api.jup.ag/v6";
+
       let amount: number;
       if (isBuy) {
         amount = Math.floor(amountSol * LAMPORTS_PER_SOL);
       } else {
-        const reverseQuoteRes = await fetch(`/api/jupiter/quote?inputMint=${SOL_MINT}&outputMint=${mint}&amount=${Math.floor(amountSol * LAMPORTS_PER_SOL)}&slippageBps=${slippageBps}`);
+        const reverseParams = new URLSearchParams({
+          inputMint: SOL_MINT,
+          outputMint: mint,
+          amount: String(Math.floor(amountSol * LAMPORTS_PER_SOL)),
+          slippageBps: String(slippageBps),
+        });
+        const reverseQuoteRes = await fetch(`${JUPITER_API}/quote?${reverseParams}`);
         if (reverseQuoteRes.ok) {
           const reverseQuote = await reverseQuoteRes.json();
           amount = parseInt(reverseQuote.outAmount || "0", 10);
         } else {
-          toast({ title: "Failed to calculate sell amount", variant: "destructive" });
+          const errText = await reverseQuoteRes.text();
+          toast({ title: "Failed to calculate sell amount", description: errText.slice(0, 100), variant: "destructive" });
           setExecuting(false);
           return;
         }
@@ -175,19 +184,38 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         description: `${amountSol} SOL via Jupiter`,
       });
 
-      const quoteRes = await fetch(`/api/jupiter/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`);
+      const quoteParams = new URLSearchParams({
+        inputMint,
+        outputMint,
+        amount: String(amount),
+        slippageBps: String(slippageBps),
+      });
+      const quoteRes = await fetch(`${JUPITER_API}/quote?${quoteParams}`);
       if (!quoteRes.ok) {
-        const err = await quoteRes.json();
-        toast({ title: "Quote failed", description: err.message, variant: "destructive" });
+        const errText = await quoteRes.text();
+        toast({ title: "Quote failed", description: errText.slice(0, 100), variant: "destructive" });
         setExecuting(false);
         return;
       }
       const quoteData = await quoteRes.json();
 
-      const swapRes = await apiRequest("POST", "/api/jupiter/swap", {
-        quoteResponse: quoteData,
-        userPublicKey: publicKey.toBase58(),
+      const swapRes = await fetch(`${JUPITER_API}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse: quoteData,
+          userPublicKey: publicKey.toBase58(),
+          wrapAndUnwrapSol: true,
+          dynamicSlippage: { minBps: 50, maxBps: 300 },
+          prioritizationFeeLamports: "auto",
+        }),
       });
+      if (!swapRes.ok) {
+        const errText = await swapRes.text();
+        toast({ title: "Swap failed", description: errText.slice(0, 100), variant: "destructive" });
+        setExecuting(false);
+        return;
+      }
       const swapData = await swapRes.json();
 
       if (!swapData.swapTransaction) {
