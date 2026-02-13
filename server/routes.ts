@@ -426,6 +426,8 @@ export async function registerRoutes(
     res.json({ action, confidence, nci, band, posture, shouldExecute });
   });
 
+  const JUPITER_API_BASE = "https://public.jupiterapi.com";
+
   async function handleJupiterQuote(req: any, res: any) {
     try {
       const inputMint = req.query.inputMint || req.body?.inputMint;
@@ -441,7 +443,7 @@ export async function registerRoutes(
         amount: String(amount),
         slippageBps: String(slippageBps || 100),
       });
-      const quoteRes = await fetch(`https://quote-api.jup.ag/v6/quote?${params}`);
+      const quoteRes = await fetch(`${JUPITER_API_BASE}/quote?${params}`);
       if (!quoteRes.ok) {
         const errText = await quoteRes.text();
         return res.status(quoteRes.status).json({ message: errText });
@@ -461,7 +463,7 @@ export async function registerRoutes(
       if (!quoteResponse || !userPublicKey) {
         return res.status(400).json({ message: "quoteResponse, userPublicKey required" });
       }
-      const swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
+      const swapRes = await fetch(`${JUPITER_API_BASE}/swap`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
