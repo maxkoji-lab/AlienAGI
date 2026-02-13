@@ -426,6 +426,58 @@ export async function registerRoutes(
     res.json({ action, confidence, nci, band, posture, shouldExecute });
   });
 
+  app.post("/api/jupiter/quote", async (req, res) => {
+    try {
+      const { inputMint, outputMint, amount, slippageBps } = req.body;
+      if (!inputMint || !outputMint || !amount) {
+        return res.status(400).json({ message: "inputMint, outputMint, amount required" });
+      }
+      const params = new URLSearchParams({
+        inputMint,
+        outputMint,
+        amount: String(amount),
+        slippageBps: String(slippageBps || 100),
+      });
+      const quoteRes = await fetch(`https://quote-api.jup.ag/v6/quote?${params}`);
+      if (!quoteRes.ok) {
+        const errText = await quoteRes.text();
+        return res.status(quoteRes.status).json({ message: errText });
+      }
+      const quoteData = await quoteRes.json();
+      res.json(quoteData);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Jupiter quote failed" });
+    }
+  });
+
+  app.post("/api/jupiter/swap", async (req, res) => {
+    try {
+      const { quoteResponse, userPublicKey } = req.body;
+      if (!quoteResponse || !userPublicKey) {
+        return res.status(400).json({ message: "quoteResponse, userPublicKey required" });
+      }
+      const swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse,
+          userPublicKey,
+          wrapAndUnwrapSol: true,
+          dynamicSlippage: { minBps: 50, maxBps: 300 },
+          prioritizationFeeLamports: "auto",
+        }),
+      });
+      if (!swapRes.ok) {
+        const errText = await swapRes.text();
+        return res.status(swapRes.status).json({ message: errText });
+      }
+      const swapData = await swapRes.json();
+      res.json(swapData);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Jupiter swap failed" });
+    }
+  });
+
   app.get("/api/token-profile/:mint", async (req, res) => {
     try {
       const profile = await fetchTokenProfile(req.params.mint);
