@@ -426,7 +426,89 @@ export async function registerRoutes(
     res.json({ action, confidence, nci, band, posture, shouldExecute });
   });
 
+  const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
+  const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
   const JUPITER_API_BASE = "https://public.jupiterapi.com";
+
+  const ALLOWED_RPC_METHODS = [
+    "getHealth", "getLatestBlockhash", "getBalance", "getAccountInfo",
+    "getTokenAccountsByOwner", "getSignaturesForAddress", "getTransaction",
+    "getRecentBlockhash", "getSlot", "getBlock", "getBlockHeight",
+    "getEpochInfo", "getFeeForMessage", "getMinimumBalanceForRentExemption",
+    "getMultipleAccounts", "getProgramAccounts", "getSignatureStatuses",
+    "getTokenAccountBalance", "getVersion", "isBlockhashValid",
+    "simulateTransaction", "sendTransaction",
+  ];
+
+  const sendTxRateMap = new Map<string, number[]>();
+  const SEND_TX_RATE_LIMIT = 10;
+  const SEND_TX_RATE_WINDOW_MS = 60_000;
+
+  app.post("/api/solana/rpc", async (req, res) => {
+    try {
+      if (!HELIUS_API_KEY) {
+        return res.status(503).json({ error: "Helius API key not configured" });
+      }
+      const method = req.body?.method;
+      if (!method || !ALLOWED_RPC_METHODS.includes(method)) {
+        return res.status(400).json({ error: `RPC method '${method}' not allowed` });
+      }
+      const rpcRes = await fetch(HELIUS_RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      const data = await rpcRes.json();
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "RPC proxy failed" });
+    }
+  });
+
+  app.post("/api/solana/sendTransaction", async (req, res) => {
+    try {
+      if (!HELIUS_API_KEY) {
+        return res.status(503).json({ message: "Helius API key not configured" });
+      }
+      const { transaction } = req.body;
+      if (!transaction || typeof transaction !== "string") {
+        return res.status(400).json({ message: "transaction (base64 string) required" });
+      }
+      if (transaction.length > 10000) {
+        return res.status(400).json({ message: "Transaction too large" });
+      }
+      const clientIp = req.ip || "unknown";
+      const now = Date.now();
+      const timestamps = sendTxRateMap.get(clientIp) || [];
+      const recent = timestamps.filter(t => now - t < SEND_TX_RATE_WINDOW_MS);
+      if (recent.length >= SEND_TX_RATE_LIMIT) {
+        return res.status(429).json({ message: "Rate limit exceeded. Try again in a minute." });
+      }
+      recent.push(now);
+      sendTxRateMap.set(clientIp, recent);
+
+      const rpcRes = await fetch(HELIUS_RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "sendTransaction",
+          params: [transaction, { skipPreflight: false, maxRetries: 3, encoding: "base64" }],
+        }),
+      });
+      const data = await rpcRes.json();
+      if (data.error) {
+        console.error("[sendTransaction] RPC error:", JSON.stringify(data.error));
+        return res.status(400).json({ message: data.error.message || "Transaction failed", error: data.error });
+      }
+      console.log("[sendTransaction] SUCCESS tx:", data.result);
+      res.json({ signature: data.result });
+    } catch (e: any) {
+      console.error("[sendTransaction] Exception:", e.message);
+      res.status(500).json({ message: e.message || "Send transaction failed" });
+    }
+  });
 
   async function handleJupiterQuote(req: any, res: any) {
     try {
@@ -470,7 +552,7 @@ export async function registerRoutes(
           quoteResponse,
           userPublicKey,
           wrapAndUnwrapSol: true,
-          dynamicSlippage: { minBps: 50, maxBps: 300 },
+          dynamicComputeUnitLimit: true,
           prioritizationFeeLamports: "auto",
         }),
       });
