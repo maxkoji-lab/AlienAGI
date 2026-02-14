@@ -110,28 +110,7 @@ export default function Treasury() {
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8 relative overflow-hidden">
       <div className="scanline"></div>
 
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm" style={{ pointerEvents: "all" }}>
-        <div className="flex flex-col items-center gap-4" style={{ transform: "rotate(-15deg)" }}>
-          <span className="text-4xl md:text-6xl font-display tracking-widest glow-text uppercase select-none">
-            Coming Soon!
-          </span>
-          <span className="text-sm md:text-base font-mono text-muted-foreground tracking-wider select-none">
-            Alienlovesyou
-          </span>
-        </div>
-        <Button
-          variant="outline"
-          className="mt-10 font-mono border-primary/30"
-          onClick={() => navigate("/")}
-          style={{ transform: "rotate(0deg)" }}
-          data-testid="button-back-from-treasury"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
-        </Button>
-      </div>
-
-      <div className="max-w-7xl mx-auto relative z-10 space-y-6 pointer-events-none select-none opacity-20">
+      <div className="max-w-7xl mx-auto relative z-10 space-y-6">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-primary/20 pb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
