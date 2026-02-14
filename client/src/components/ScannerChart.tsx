@@ -6,16 +6,16 @@ import { Pause, Play } from "lucide-react";
 import { format } from "date-fns";
 
 const COLORS = {
-  nciLine: "#00e5ff",
-  nciGlow: "rgba(0, 229, 255, 0.15)",
-  holderLine: "#ffdd00",
-  grid: "rgba(58, 90, 74, 0.15)",
-  axisText: "#5a8a6a",
+  nciLine: "#00bfff",
+  nciGlow: "rgba(0, 191, 255, 0.15)",
+  holderLine: "#ff3399",
+  grid: "rgba(42, 53, 69, 0.2)",
+  axisText: "#6b7b8d",
   refCold: "rgba(255, 68, 68, 0.5)",
-  refMid: "rgba(85, 85, 85, 0.4)",
-  refHot: "rgba(0, 255, 128, 0.5)",
+  refMid: "rgba(74, 85, 104, 0.4)",
+  refHot: "rgba(0, 191, 255, 0.5)",
   bg: "rgba(0, 0, 0, 0)",
-  scanLine: "rgba(0, 229, 255, 0.03)",
+  scanLine: "rgba(0, 191, 255, 0.03)",
 };
 
 interface LiveDataPoint {
@@ -314,14 +314,14 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
 
     drawGlowLine(
       (p) => holderToY(p.holders),
-      COLORS.holderLine, "rgba(255,221,0,0.05)", 1.5, false, true
+      COLORS.holderLine, "rgba(255,51,153,0.05)", 1.5, false, true
     );
 
     const scanX = padLeft + ((scrollOffsetRef.current * 2) % chartW);
     const scanGrad = ctx.createLinearGradient(scanX - 30, 0, scanX + 30, 0);
-    scanGrad.addColorStop(0, "rgba(0,229,255,0)");
+    scanGrad.addColorStop(0, "rgba(0,191,255,0)");
     scanGrad.addColorStop(0.5, COLORS.scanLine);
-    scanGrad.addColorStop(1, "rgba(0,229,255,0)");
+    scanGrad.addColorStop(1, "rgba(0,191,255,0)");
     ctx.fillStyle = scanGrad;
     ctx.fillRect(scanX - 30, padTop, 60, chartH);
 
@@ -363,8 +363,8 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${isPolling ? "bg-red-500 animate-pulse" : "bg-muted-foreground"}`} />
-            <span className="text-[10px] font-mono text-red-400 uppercase tracking-widest" data-testid="text-live-status">
+            <span className={`w-2 h-2 rounded-full ${isPolling ? "bg-accent animate-pulse" : "bg-muted-foreground"}`} />
+            <span className="text-[10px] font-mono text-accent uppercase tracking-widest" data-testid="text-live-status">
               {isPolling ? "Live Feed" : "Paused"}
             </span>
           </div>
@@ -374,18 +374,18 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-4 text-xs font-mono">
-            <span className="text-secondary" data-testid="text-live-nci">
+            <span className="text-primary" data-testid="text-live-nci">
               NCI: {displayNci.toFixed(2)}
               {nciDelta !== 0 && (
-                <span className={nciDelta > 0 ? "text-primary ml-1" : "text-destructive ml-1"}>
+                <span className={nciDelta > 0 ? "text-secondary ml-1" : "text-destructive ml-1"}>
                   {nciDelta > 0 ? "+" : ""}{nciDelta.toFixed(2)}
                 </span>
               )}
             </span>
-            <span className="text-primary" data-testid="text-live-holders">
+            <span className="text-foreground" data-testid="text-live-holders">
               H: {displayHolders.toLocaleString()}
               {holderDelta !== 0 && (
-                <span className={holderDelta > 0 ? "text-primary ml-1" : "text-destructive ml-1"}>
+                <span className={holderDelta > 0 ? "text-secondary ml-1" : "text-destructive ml-1"}>
                   {holderDelta > 0 ? "+" : ""}{holderDelta}
                 </span>
               )}

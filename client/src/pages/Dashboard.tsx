@@ -6,7 +6,7 @@ import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio, Power, PowerOff } from "lucide-react";
 import { AutoTrader } from "@/components/AutoTrader";
-import pippinBg from "@assets/VS_(3)_1771039790448.png";
+import pippinBg from "@assets/VS_(2)_1771040587852.png";
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -307,16 +307,13 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8 relative overflow-hidden">
-      <div
-        className="fixed inset-0 pointer-events-none z-0"
-        style={{
-          backgroundImage: `url(${pippinBg})`,
-          backgroundSize: "contain",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          opacity: 0.55,
-        }}
-      />
+      <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center">
+        <img
+          src={pippinBg}
+          alt=""
+          className="pippin-float max-h-[70vh] max-w-[50vw] object-contain opacity-40 drop-shadow-[0_0_40px_rgba(0,191,255,0.2)]"
+        />
+      </div>
       <div className="scanline"></div>
       
       <div className="max-w-7xl mx-auto relative z-10 space-y-4">
@@ -336,7 +333,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
-              className="border-cyan-500/50 text-cyan-400 font-mono gap-2"
+              className="border-primary/50 text-primary font-mono gap-2"
               onClick={() => navigate("/treasury")}
               data-testid="button-go-treasury"
             >
@@ -351,12 +348,12 @@ export default function Dashboard() {
               <div className="w-px h-6 bg-primary/20" />
               <div className="text-center" data-testid="clock-eu">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest">EU/GMT</p>
-                <p className="font-mono text-cyan-400 font-bold text-sm">{clocks.eu}</p>
+                <p className="font-mono text-secondary font-bold text-sm">{clocks.eu}</p>
               </div>
               <div className="w-px h-6 bg-primary/20" />
               <div className="text-center" data-testid="clock-asia">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest">ASIA/JST</p>
-                <p className="font-mono text-purple-400 font-bold text-sm">{clocks.asia}</p>
+                <p className="font-mono text-accent font-bold text-sm">{clocks.asia}</p>
               </div>
             </div>
             <div className="p-2 border border-primary/30 bg-primary/5 rounded-sm">
@@ -475,7 +472,7 @@ export default function Dashboard() {
                 value={contractAddress}
                 onChange={(e) => setContractAddress(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !analyzing && handleAnalyze()}
-                className="font-mono text-sm bg-black/30 border-primary/30 text-foreground placeholder:text-muted-foreground/50"
+                className="font-mono text-sm bg-background/50 border-primary/20 text-foreground placeholder:text-muted-foreground/50"
                 data-testid="input-contract-address"
                 disabled={analyzing}
               />
@@ -507,19 +504,19 @@ export default function Dashboard() {
                 className="space-y-4"
               >
                 {analysis.profile && (
-                  <div className="bg-black/40 border border-cyan-500/30 rounded-sm p-4" data-testid="section-token-profile">
+                  <div className="bg-background/50 border border-primary/20 rounded-sm p-4" data-testid="section-token-profile">
                     <div className="flex items-start gap-4">
                       {analysis.profile.imageUrl && (
                         <img
                           src={analysis.profile.imageUrl}
                           alt={analysis.profile.name}
-                          className="w-12 h-12 rounded-sm border border-cyan-500/30 shrink-0"
+                          className="w-12 h-12 rounded-sm border border-primary/20 shrink-0"
                           data-testid="img-token-logo"
                         />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-display text-lg text-cyan-400 tracking-wide" data-testid="text-token-name">
+                          <h3 className="font-display text-lg text-primary tracking-wide" data-testid="text-token-name">
                             {analysis.profile.name}
                           </h3>
                           <span className="font-mono text-sm text-primary/80" data-testid="text-token-symbol">
@@ -552,8 +549,8 @@ export default function Dashboard() {
                     </div>
 
                     {analysis.profile.description && (
-                      <div className="mt-3 border-t border-cyan-500/10 pt-3" data-testid="section-token-lore">
-                        <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest mb-1">Lore / Description</p>
+                      <div className="mt-3 border-t border-primary/10 pt-3" data-testid="section-token-lore">
+                        <p className="text-[10px] text-primary/70 uppercase tracking-widest mb-1">Lore / Description</p>
                         <p className="font-mono text-xs text-foreground/70 leading-relaxed">{analysis.profile.description}</p>
                       </div>
                     )}
@@ -561,7 +558,7 @@ export default function Dashboard() {
                     <div className="mt-3 flex items-center gap-2 flex-wrap" data-testid="section-token-links">
                       {analysis.profile.websites.map((w, i) => (
                         <a key={i} href={w.url} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-primary/80 border border-primary/20 rounded-sm px-2 py-0.5 transition-colors hover:border-primary/50 hover:text-primary"
                           data-testid={`link-website-${i}`}
                         >
                           <Globe className="w-3 h-3" />
@@ -570,7 +567,7 @@ export default function Dashboard() {
                       ))}
                       {analysis.profile.twitterUrl && (
                         <a href={analysis.profile.twitterUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-primary/80 border border-primary/20 rounded-sm px-2 py-0.5 transition-colors hover:border-primary/50 hover:text-primary"
                           data-testid="link-twitter"
                         >
                           <span className="font-bold">X</span>
@@ -579,7 +576,7 @@ export default function Dashboard() {
                       )}
                       {analysis.profile.telegramUrl && (
                         <a href={analysis.profile.telegramUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-primary/80 border border-primary/20 rounded-sm px-2 py-0.5 transition-colors hover:border-primary/50 hover:text-primary"
                           data-testid="link-telegram"
                         >
                           Telegram
@@ -587,7 +584,7 @@ export default function Dashboard() {
                       )}
                       {analysis.profile.discordUrl && (
                         <a href={analysis.profile.discordUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-primary/80 border border-primary/20 rounded-sm px-2 py-0.5 transition-colors hover:border-primary/50 hover:text-primary"
                           data-testid="link-discord"
                         >
                           Discord
@@ -595,7 +592,7 @@ export default function Dashboard() {
                       )}
                       {analysis.profile.dexscreenerUrl && (
                         <a href={analysis.profile.dexscreenerUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400/80 border border-cyan-500/20 rounded-sm px-2 py-0.5 transition-colors hover:border-cyan-500/50 hover:text-cyan-400"
+                          className="inline-flex items-center gap-1 text-[10px] font-mono text-primary/80 border border-primary/20 rounded-sm px-2 py-0.5 transition-colors hover:border-primary/50 hover:text-primary"
                           data-testid="link-dexscreener"
                         >
                           <ExternalLink className="w-3 h-3" />
@@ -607,44 +604,44 @@ export default function Dashboard() {
                 )}
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-black/30 border border-primary/20 rounded-sm p-3" data-testid="text-analysis-holders">
+                  <div className="bg-background/40 border border-primary/15 rounded-sm p-3" data-testid="text-analysis-holders">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Holders</p>
                     <p className="font-mono text-lg text-primary font-bold">{analysis.holders.toLocaleString()}</p>
                   </div>
-                  <div className="bg-black/30 border border-cyan-500/20 rounded-sm p-3" data-testid="text-analysis-whales">
+                  <div className="bg-background/40 border border-secondary/15 rounded-sm p-3" data-testid="text-analysis-whales">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Whale Concentration</p>
-                    <p className="font-mono text-lg text-cyan-400 font-bold">{analysis.whaleConcentration}</p>
+                    <p className="font-mono text-lg text-secondary font-bold">{analysis.whaleConcentration}</p>
                   </div>
-                  <div className="bg-black/30 border border-secondary/20 rounded-sm p-3" data-testid="text-analysis-nci">
+                  <div className="bg-background/40 border border-primary/15 rounded-sm p-3" data-testid="text-analysis-nci">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest">NCI Score</p>
-                    <p className="font-mono text-lg text-secondary font-bold">{analysis.nciRaw}/100</p>
+                    <p className="font-mono text-lg text-primary font-bold">{analysis.nciRaw}/100</p>
                   </div>
-                  <div className="bg-black/30 border border-purple-500/20 rounded-sm p-3" data-testid="text-analysis-band">
+                  <div className="bg-background/40 border border-accent/15 rounded-sm p-3" data-testid="text-analysis-band">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Band</p>
-                    <p className="font-mono text-sm text-purple-400 font-bold">{analysis.band}</p>
+                    <p className="font-mono text-sm text-accent font-bold">{analysis.band}</p>
                   </div>
                 </div>
 
-                <div className="bg-black/30 border border-primary/20 rounded-sm p-3" data-testid="text-analysis-posture">
+                <div className="bg-background/40 border border-primary/15 rounded-sm p-3" data-testid="text-analysis-posture">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Operator Posture</p>
                   <p className="font-mono text-sm text-foreground/80">{analysis.posture}</p>
                 </div>
 
                 {analysis.aiAnalysis && (
-                  <div className="bg-black/30 border border-cyan-500/20 rounded-sm p-3" data-testid="text-analysis-ai">
-                    <p className="text-[10px] text-cyan-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                  <div className="bg-background/40 border border-primary/15 rounded-sm p-3" data-testid="text-analysis-ai">
+                    <p className="text-[10px] text-primary uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
                       BabyAGI-3 Analysis
                     </p>
                     <p className="font-mono text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">{analysis.aiAnalysis}</p>
                   </div>
                 )}
 
-                <div className="bg-black/40 border border-cyan-500/30 rounded-sm p-3" data-testid="section-x-monitor">
+                <div className="bg-background/50 border border-accent/20 rounded-sm p-3" data-testid="section-x-monitor">
                   <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <Radio className={cn("w-4 h-4", isMonitoringThisToken ? "text-cyan-400 animate-pulse" : "text-muted-foreground")} />
-                      <p className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold">
+                      <Radio className={cn("w-4 h-4", isMonitoringThisToken ? "text-accent animate-pulse" : "text-muted-foreground")} />
+                      <p className="text-[10px] text-accent uppercase tracking-widest font-bold">
                         X Monitor {isMonitoringThisToken ? "ACTIVE" : "INACTIVE"}
                       </p>
                     </div>
@@ -677,9 +674,9 @@ export default function Dashboard() {
                   </div>
 
                   {monitorStatus?.active && !isMonitoringThisToken && (
-                    <div className="bg-black/30 border border-yellow-500/20 rounded-sm p-2 mb-3">
-                      <p className="text-[10px] font-mono text-yellow-400/80">
-                        Another token is being monitored: <span className="text-yellow-300">${monitorStatus.token?.symbol || "?"}</span>
+                    <div className="bg-background/40 border border-accent/15 rounded-sm p-2 mb-3">
+                      <p className="text-[10px] font-mono text-accent/80">
+                        Another token is being monitored: <span className="text-accent">${monitorStatus.token?.symbol || "?"}</span>
                       </p>
                       <p className="text-[9px] font-mono text-muted-foreground mt-1">
                         Click START to switch monitoring to this token
@@ -688,9 +685,9 @@ export default function Dashboard() {
                   )}
 
                   {isMonitoringThisToken && (
-                    <div className="bg-black/30 border border-cyan-500/10 rounded-sm p-2 mb-3">
-                      <p className="text-[10px] font-mono text-cyan-400/80">
-                        Tracking: <span className="text-cyan-300">${analysis.profile?.symbol || monitorStatus?.token?.symbol || "?"}</span>
+                    <div className="bg-background/40 border border-primary/10 rounded-sm p-2 mb-3">
+                      <p className="text-[10px] font-mono text-primary/80">
+                        Tracking: <span className="text-primary">${analysis.profile?.symbol || monitorStatus?.token?.symbol || "?"}</span>
                         <span className="text-muted-foreground ml-2">({monitorStatus?.alertCount || 0} alerts detected)</span>
                       </p>
                       <p className="text-[9px] font-mono text-muted-foreground mt-1">
@@ -700,7 +697,7 @@ export default function Dashboard() {
                   )}
 
                   {!monitorStatus?.active && (
-                    <div className="bg-black/30 border border-primary/10 rounded-sm p-2 mb-3">
+                    <div className="bg-background/40 border border-primary/10 rounded-sm p-2 mb-3">
                       <p className="text-[9px] font-mono text-muted-foreground">
                         X monitoring is inactive. Click START to track influencer mentions of this token on X/Twitter.
                       </p>
@@ -710,8 +707,8 @@ export default function Dashboard() {
                   {xAlerts.length > 0 ? (
                     <div data-testid="section-x-alerts">
                       <div className="flex items-center gap-2 mb-2">
-                        <Bell className="w-3 h-3 text-yellow-400 animate-pulse" />
-                        <p className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold">
+                        <Bell className="w-3 h-3 text-accent animate-pulse" />
+                        <p className="text-[10px] text-accent uppercase tracking-widest font-bold">
                           Influencer Alerts ({xAlerts.length})
                         </p>
                         <span className="text-[9px] text-muted-foreground ml-auto font-mono">Live feed (15s refresh)</span>
@@ -723,11 +720,11 @@ export default function Dashboard() {
                             href={alert.tweetUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block bg-black/30 border border-yellow-500/10 rounded-sm p-2 transition-colors hover:border-yellow-500/30"
+                            className="block bg-background/40 border border-accent/10 rounded-sm p-2 transition-colors hover:border-accent/30"
                             data-testid={`alert-${alert.id}`}
                           >
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-yellow-400 font-bold">@{alert.username}</span>
+                              <span className="font-mono text-xs text-accent font-bold">@{alert.username}</span>
                               <span className="text-[9px] text-muted-foreground">{alert.followers.toLocaleString()} followers</span>
                               <ExternalLink className="w-3 h-3 text-muted-foreground ml-auto" />
                             </div>
@@ -751,10 +748,10 @@ export default function Dashboard() {
                   </p>
                 </div>
 
-                <div className="border-t border-cyan-500/20 pt-4 mt-4">
+                <div className="border-t border-primary/15 pt-4 mt-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-widest">Live NCI Monitor</span>
+                    <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                    <span className="text-[11px] font-mono text-primary uppercase tracking-widest">Live NCI Monitor</span>
                     <span className="text-[10px] font-mono text-muted-foreground ml-auto">Token: {analysis.mint.slice(0, 8)}...{analysis.mint.slice(-6)}</span>
                   </div>
                   <ScannerChart
