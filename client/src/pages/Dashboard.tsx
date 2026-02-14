@@ -123,8 +123,8 @@ Mint: ${analysis.mint}
   }
 
   brief += `
-## Conviction Index
-NCI: ${nci}/100  (${band})
+## Pippin Index
+Pippin's Mind: ${nci}/100  (${band})
 Operator posture: ${posture}
 
 ## On-Chain Metrics
@@ -364,10 +364,10 @@ export default function Dashboard() {
 
         {/* Top Metrics Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <TerminalCard title="Alien Conviction Index" delay={0.1} highlight>
+          <TerminalCard title="Pippin Index" delay={0.1} highlight>
             <div className="flex items-center justify-between">
               <MetricValue 
-                label={analysis ? "Scanned NCI" : "Current NCI"}
+                label={analysis ? "Scanned Pippin's Mind" : "Pippin's Mind"}
                 value={
                   scannerLive
                     ? scannerLive.nci.toFixed(2)
@@ -492,7 +492,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-center gap-3 py-6">
                 <div className="w-3 h-3 bg-primary animate-ping rounded-full" />
                 <span className="text-sm font-mono text-primary/70 animate-pulse">
-                  SCANNING TOKEN // FETCHING HOLDER DATA // COMPUTING NCI...
+                  SCANNING TOKEN // FETCHING HOLDER DATA // COMPUTING PIPPIN'S MIND...
                 </span>
               </div>
             )}
@@ -613,7 +613,7 @@ export default function Dashboard() {
                     <p className="font-mono text-lg text-secondary font-bold">{analysis.whaleConcentration}</p>
                   </div>
                   <div className="bg-background/40 border border-primary/15 rounded-sm p-3" data-testid="text-analysis-nci">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">NCI Score</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Pippin's Mind</p>
                     <p className="font-mono text-lg text-primary font-bold">{analysis.nciRaw}/100</p>
                   </div>
                   <div className="bg-background/40 border border-accent/15 rounded-sm p-3" data-testid="text-analysis-band">
@@ -751,7 +751,7 @@ export default function Dashboard() {
                 <div className="border-t border-primary/15 pt-4 mt-4">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                    <span className="text-[11px] font-mono text-primary uppercase tracking-widest">Live NCI Monitor</span>
+                    <span className="text-[11px] font-mono text-primary uppercase tracking-widest">Live Pippin Monitor</span>
                     <span className="text-[10px] font-mono text-muted-foreground ml-auto">Token: {analysis.mint.slice(0, 8)}...{analysis.mint.slice(-6)}</span>
                   </div>
                   <ScannerChart
