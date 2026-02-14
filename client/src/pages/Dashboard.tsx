@@ -832,9 +832,6 @@ export default function Dashboard() {
               TheHuman
             </a>
           </div>
-          <div className="text-center text-primary/70 select-all" data-testid="text-contract-address">
-            ca: USDM2tPhZfXuL55ZmhU1KHPW2hLTwTwZbVh9teFpump
-          </div>
         </footer>
 
       </div>
