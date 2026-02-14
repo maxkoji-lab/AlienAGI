@@ -821,17 +821,6 @@ export default function Dashboard() {
               <span className="text-primary">CONNECTED</span>
             </div>
           </div>
-          <div className="flex flex-wrap justify-center gap-4">
-            <a href="https://x.com/i/communities/2022139692221976788" target="_blank" rel="noopener noreferrer" className="text-primary hover-elevate px-3 py-1 border border-primary/30 rounded-md" data-testid="link-community">
-              Community
-            </a>
-            <a href="https://x.com/alien66219" target="_blank" rel="noopener noreferrer" className="text-primary hover-elevate px-3 py-1 border border-primary/30 rounded-md" data-testid="link-thealien">
-              TheAlien
-            </a>
-            <a href="https://x.com/SsilentCA" target="_blank" rel="noopener noreferrer" className="text-primary hover-elevate px-3 py-1 border border-primary/30 rounded-md" data-testid="link-thehuman">
-              TheHuman
-            </a>
-          </div>
         </footer>
 
       </div>
