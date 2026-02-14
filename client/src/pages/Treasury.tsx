@@ -430,7 +430,7 @@ export default function Treasury() {
             <div className="space-y-2">
               <h4 className="text-primary uppercase tracking-wider text-xs border-b border-primary/20 pb-1">Buyback Protocol</h4>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Treasury deploys SOL to acquire ALIENAGI tokens from the open market. Acquired tokens are allocated to burn pool or reward campaigns.
+                Treasury deploys SOL to acquire PippinAGI tokens from the open market. Acquired tokens are allocated to burn pool or reward campaigns.
               </p>
               <div className="flex items-center gap-2 text-xs">
                 <span className="w-2 h-2 bg-primary rounded-full"></span>
@@ -450,7 +450,7 @@ export default function Treasury() {
             <div className="space-y-2">
               <h4 className="text-cyan-400 uppercase tracking-wider text-xs border-b border-cyan-500/20 pb-1">Holder Rewards</h4>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Holders with more than $10 in ALIENAGI qualify for $0.20 reward distributions. Campaigns run on configurable budgets.
+                Holders with more than $10 in PippinAGI qualify for $0.20 reward distributions. Campaigns run on configurable budgets.
               </p>
               <div className="flex items-center gap-2 text-xs">
                 <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
@@ -461,7 +461,7 @@ export default function Treasury() {
         </TerminalCard>
 
         <footer className="border-t border-primary/20 pt-6 mt-8 flex flex-col md:flex-row justify-between items-center text-xs text-muted-foreground font-mono">
-          <p>ALIENAGI TREASURY OPS // PROTOCOL SECURE</p>
+          <p>PippinAGI TREASURY OPS // PROTOCOL SECURE</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <span>CAMPAIGNS: {stats?.activeCampaigns || 0}</span>
             <span>BURNED: {stats?.totalBurned?.toLocaleString() || 0}</span>
