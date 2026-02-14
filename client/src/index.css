@@ -6,7 +6,7 @@
 
 :root {
   /* Cyberpunk / Terminal Theme Palette */
-  --background: 240 30% 6%;      /* Very dark blue/black */
+  --background: 204 10% 82%;      /* Light bluish-grey #C9D2D8 */
   --foreground: 160 100% 50%;    /* Neon Green text */
   
   --primary: 160 100% 50%;       /* Neon Green */
