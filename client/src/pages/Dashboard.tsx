@@ -6,7 +6,7 @@ import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio, Power, PowerOff } from "lucide-react";
 import { AutoTrader } from "@/components/AutoTrader";
-import alienBg from "@assets/VS_1770881377474.png";
+import pippinBg from "@assets/VS_(3)_1771039790448.png";
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -310,7 +310,7 @@ export default function Dashboard() {
       <div
         className="fixed inset-0 pointer-events-none z-0"
         style={{
-          backgroundImage: `url(${alienBg})`,
+          backgroundImage: `url(${pippinBg})`,
           backgroundSize: "contain",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
