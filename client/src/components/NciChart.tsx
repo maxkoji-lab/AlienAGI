@@ -4,14 +4,14 @@ import { format } from "date-fns";
 import { type Metric } from "@shared/schema";
 
 const COLORS = {
-  nciLine: "#00e5ff",
-  emaLine: "#ff00ff",
-  holderLine: "#00ff80",
-  grid: "#3a5a4a",
-  axisText: "#5a8a6a",
+  nciLine: "#00bfff",
+  emaLine: "#ff3399",
+  holderLine: "#c2cdd6",
+  grid: "#2a3545",
+  axisText: "#6b7b8d",
   refCold: "#ff4444",
-  refMid: "#555555",
-  refHot: "#00ff80",
+  refMid: "#4a5568",
+  refHot: "#00bfff",
 };
 
 interface NciChartProps {
@@ -75,7 +75,7 @@ export function NciChart({ data }: NciChartProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background/90 border border-primary/50 p-3 rounded-sm shadow-lg backdrop-blur-md">
+        <div className="bg-background/90 border border-primary/40 p-3 rounded-sm shadow-lg backdrop-blur-md">
           <p className="font-mono text-xs mb-2 border-b border-primary/20 pb-1" style={{ color: COLORS.holderLine }}>
             {format(new Date(label), "HH:mm:ss")}
           </p>
@@ -104,8 +104,8 @@ export function NciChart({ data }: NciChartProps) {
   return (
     <div className="h-[300px] w-full mt-4 relative">
       <div className="absolute top-0 left-0 z-10 flex items-center gap-2">
-        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-        <span className="text-[10px] font-mono text-red-400 uppercase tracking-widest">Live</span>
+        <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+        <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Live</span>
         <span className="text-[10px] font-mono text-muted-foreground ml-2">
           NCI: {latestNci.toFixed(2)}
         </span>
