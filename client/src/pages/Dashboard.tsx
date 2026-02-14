@@ -811,7 +811,7 @@ export default function Dashboard() {
         {/* Footer */}
         <footer className="border-t border-primary/20 pt-6 mt-8 flex flex-col items-center gap-3 text-xs text-muted-foreground font-mono">
           <div className="flex flex-col md:flex-row justify-between items-center w-full gap-2">
-            <p>PippinAGI OPERATOR TERMINAL // SYSTEM ID: XJ-9</p>
+            <p>PippinAGI Terminal // SYSTEM ID: XJ-9</p>
             <div className="flex gap-4">
               <span>LATENCY: 12ms</span>
               <span>NODES: 4 Active</span>
