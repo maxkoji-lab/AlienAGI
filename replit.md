@@ -1,7 +1,7 @@
-# ALIENAGI
+# PippinAGI
 
 ## Overview
-ALIENAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
+PippinAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
 
 ## Recent Changes
 - 2026-02-13: Added private key input for auto-signing trades without Phantom popup — supports base58 and JSON array formats, client-side only
@@ -13,7 +13,7 @@ ALIENAGI is a fullstack Solana token metrics tracking application with an integr
 - 2026-02-12: Token Scanner now shows full token profile card with logo, links, and lore from DexScreener
 - 2026-02-12: Added Token Scanner — users can input any Solana contract address to get holder analysis, whale concentration, NCI score, and optional BabyAGI-3 AI analysis
 - 2026-02-12: Added Treasury system (buybacks, burns, reward campaigns) with full CRUD API and cyberpunk-themed Treasury page
-- 2026-02-12: Renamed project from "NoopCoin" to "ALIENAGI" across all components
+- 2026-02-12: Renamed project from "NoopCoin" to "PippinAGI" across all components
 - 2026-02-12: Imported BabyAGI 3 AI agent framework from GitHub (yoheinakajima/babyagi3)
 - 2026-02-12: Configured BabyAGI 3 to use port 3001 to avoid conflict with dashboard on port 5000
 
@@ -65,4 +65,4 @@ ALIENAGI is a fullstack Solana token metrics tracking application with an integr
 ## User Preferences
 - Cyberpunk/terminal aesthetic with dark theme
 - Use Helius API (not manual Solana RPC) for data
-- Project branded as "ALIENAGI"
+- Project branded as "PippinAGI"

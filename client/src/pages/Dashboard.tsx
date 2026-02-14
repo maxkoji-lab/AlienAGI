@@ -100,7 +100,7 @@ function buildScannerBrief(
   const posture = live?.posture || analysis.posture;
   const whaleConc = live ? live.whaleConcentration.toFixed(2) + "%" : analysis.whaleConcentration;
 
-  let brief = `# ALIENAGI Brief — ${name}
+  let brief = `# PippinAGI Brief — ${name}
 Scanned: ${dateStr}
 
 Mint: ${analysis.mint}
@@ -325,7 +325,7 @@ export default function Dashboard() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-primary/20 pb-6">
           <div className="space-y-1">
             <h1 className="text-3xl md:text-5xl tracking-tighter glow-text">
-              ALIEN<span className="text-foreground">AGI</span> <span className="text-xs align-top opacity-70">v1.0.3</span>
+              Pippin<span className="text-foreground">AGI</span> <span className="text-xs align-top opacity-70">v1.0.3</span>
             </h1>
             <p className="text-sm font-mono text-muted-foreground flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
@@ -773,7 +773,7 @@ export default function Dashboard() {
         {/* Chart Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <TerminalCard title="Adaptive Learning, Intelligence Engine Network (A.L.I.E.N)" className="h-full min-h-[400px]" delay={0.5}>
+            <TerminalCard title="PippinAGI Auto-Trade Engine" className="h-full min-h-[400px]" delay={0.5}>
               <AutoTrader
                 mint={analysis?.mint || null}
                 tokenSymbol={analysis?.profile?.symbol || null}
@@ -814,7 +814,7 @@ export default function Dashboard() {
         {/* Footer */}
         <footer className="border-t border-primary/20 pt-6 mt-8 flex flex-col items-center gap-3 text-xs text-muted-foreground font-mono">
           <div className="flex flex-col md:flex-row justify-between items-center w-full gap-2">
-            <p>ALIENAGI OPERATOR TERMINAL // SYSTEM ID: XJ-9</p>
+            <p>PippinAGI OPERATOR TERMINAL // SYSTEM ID: XJ-9</p>
             <div className="flex gap-4">
               <span>LATENCY: 12ms</span>
               <span>NODES: 4 Active</span>
