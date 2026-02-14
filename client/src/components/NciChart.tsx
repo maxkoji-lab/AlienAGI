@@ -81,11 +81,11 @@ export function NciChart({ data }: NciChartProps) {
           </p>
           <div className="space-y-1">
             <p className="text-sm" style={{ color: COLORS.nciLine }}>
-              <span className="text-muted-foreground text-xs mr-2">NCI RAW:</span>
+              <span className="text-muted-foreground text-xs mr-2">PIPPIN RAW:</span>
               {Number(payload[0]?.value).toFixed(4)}
             </p>
             <p className="text-sm" style={{ color: COLORS.emaLine }}>
-              <span className="text-muted-foreground text-xs mr-2">NCI EMA:</span>
+              <span className="text-muted-foreground text-xs mr-2">PIPPIN EMA:</span>
               {Number(payload[1]?.value).toFixed(4)}
             </p>
             <p className="text-sm" style={{ color: COLORS.holderLine }}>
@@ -107,7 +107,7 @@ export function NciChart({ data }: NciChartProps) {
         <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
         <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Live</span>
         <span className="text-[10px] font-mono text-muted-foreground ml-2">
-          NCI: {latestNci.toFixed(2)}
+          Pippin: {latestNci.toFixed(2)}
         </span>
       </div>
       <ResponsiveContainer width="100%" height="100%">

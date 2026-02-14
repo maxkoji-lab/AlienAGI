@@ -418,7 +418,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Bot className="w-4 h-4 text-primary" />
-          <span className="text-[11px] font-mono uppercase tracking-widest text-primary">NCI Trade Bot</span>
+          <span className="text-[11px] font-mono uppercase tracking-widest text-primary">Pippin Trade Bot</span>
           {botEnabled && (
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
@@ -544,7 +544,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Bot Configuration</div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[9px] font-mono text-muted-foreground uppercase">Buy NCI Threshold</label>
+              <label className="text-[9px] font-mono text-muted-foreground uppercase">Buy Pippin Threshold</label>
               <Input
                 type="number"
                 min={0}
@@ -556,7 +556,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
               />
             </div>
             <div>
-              <label className="text-[9px] font-mono text-muted-foreground uppercase">Sell NCI Threshold</label>
+              <label className="text-[9px] font-mono text-muted-foreground uppercase">Sell Pippin Threshold</label>
               <Input
                 type="number"
                 min={0}
@@ -612,7 +612,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       {mint && currentNci !== null && (
         <div className="border border-primary/10 rounded-md p-3 bg-background/40">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">NCI Signal</span>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Pippin Signal</span>
             {evalLoading && <Loader2 className="w-3 h-3 animate-spin text-primary/50" />}
           </div>
           {currentEval ? (
@@ -636,7 +636,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
                 </div>
               </div>
               <div className="flex items-center gap-2 text-[9px] font-mono text-muted-foreground">
-                <span>NCI: {currentEval.nci.toFixed(1)}</span>
+                <span>Pippin: {currentEval.nci.toFixed(1)}</span>
                 <span className="text-primary/50">|</span>
                 <span>{currentEval.band}</span>
               </div>
@@ -666,7 +666,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
             setBotEnabled(!botEnabled);
             toast({
               title: botEnabled ? "Bot Disabled" : "Bot Enabled",
-              description: botEnabled ? "Auto-trading stopped" : `Auto-trading ${tokenSymbol ? `$${tokenSymbol}` : "token"} based on NCI`,
+              description: botEnabled ? "Auto-trading stopped" : `Auto-trading ${tokenSymbol ? `$${tokenSymbol}` : "token"} based on Pippin's Mind`,
             });
           }}
           data-testid="button-toggle-bot"
@@ -721,7 +721,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
                   {signal.action}
                 </span>
                 <span className="text-muted-foreground">
-                  NCI:{signal.nciAtSignal.toFixed(0)}
+                  Pippin:{signal.nciAtSignal.toFixed(0)}
                 </span>
                 {signal.amountSol && (
                   <span className="text-primary/70">{signal.amountSol} SOL</span>
