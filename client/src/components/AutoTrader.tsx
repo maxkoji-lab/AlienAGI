@@ -374,10 +374,10 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
 
   const getActionColor = (action: string) => {
     switch (action) {
-      case "BUY": return "text-green-400";
-      case "ACCUMULATE": return "text-cyan-400";
-      case "SELL": return "text-red-400";
-      case "HOLD": return "text-yellow-400";
+      case "BUY": return "text-primary";
+      case "ACCUMULATE": return "text-secondary";
+      case "SELL": return "text-destructive";
+      case "HOLD": return "text-accent";
       default: return "text-muted-foreground";
     }
   };
@@ -396,13 +396,13 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "executed": return "bg-green-500/20 text-green-400";
-      case "submitted": return "bg-green-500/20 text-green-300";
-      case "executing": return "bg-blue-500/20 text-blue-400";
-      case "signal_generated": return "bg-cyan-500/20 text-cyan-400";
-      case "pending_approval": return "bg-yellow-500/20 text-yellow-400";
-      case "rejected": return "bg-red-500/20 text-red-400";
-      case "failed": return "bg-red-500/20 text-red-400";
+      case "executed": return "bg-primary/15 text-primary";
+      case "submitted": return "bg-primary/10 text-primary/80";
+      case "executing": return "bg-secondary/15 text-secondary";
+      case "signal_generated": return "bg-primary/10 text-primary/70";
+      case "pending_approval": return "bg-accent/15 text-accent";
+      case "rejected": return "bg-destructive/15 text-destructive";
+      case "failed": return "bg-destructive/15 text-destructive";
       case "expired": return "bg-muted text-muted-foreground";
       default: return "bg-primary/10 text-primary";
     }
@@ -421,14 +421,14 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           <span className="text-[11px] font-mono uppercase tracking-widest text-primary">NCI Trade Bot</span>
           {botEnabled && (
             <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-[9px] text-green-400 font-mono">ACTIVE</span>
+              <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+              <span className="text-[9px] text-primary font-mono">ACTIVE</span>
             </span>
           )}
           {executing && (
             <span className="flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
-              <span className="text-[9px] text-blue-400 font-mono">EXECUTING</span>
+              <Loader2 className="w-3 h-3 animate-spin text-secondary" />
+              <span className="text-[9px] text-secondary font-mono">EXECUTING</span>
             </span>
           )}
         </div>
@@ -444,15 +444,15 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         </div>
       </div>
 
-      <div className="border border-primary/10 rounded-md p-3 bg-black/20 space-y-2">
+      <div className="border border-primary/10 rounded-md p-3 bg-background/40 space-y-2">
         <div className="flex items-center gap-2 mb-1">
           <KeyRound className="w-3.5 h-3.5 text-primary" />
           <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Wallet Private Key</span>
           {privateKeyValid === true && (
-            <span className="text-[9px] font-mono text-green-400 ml-auto">VALID</span>
+            <span className="text-[9px] font-mono text-primary ml-auto">VALID</span>
           )}
           {privateKeyValid === false && (
-            <span className="text-[9px] font-mono text-red-400 ml-auto">INVALID</span>
+            <span className="text-[9px] font-mono text-destructive ml-auto">INVALID</span>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -476,7 +476,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           </div>
         </div>
         {usePrivateKey && effectiveWalletAddress && (
-          <div className="flex items-center gap-1 text-[9px] font-mono text-green-400/80">
+          <div className="flex items-center gap-1 text-[9px] font-mono text-primary/80">
             <ShieldCheck className="w-3 h-3" />
             <span>Auto-sign active: {effectiveWalletAddress.slice(0, 6)}...{effectiveWalletAddress.slice(-4)}</span>
           </div>
@@ -484,7 +484,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
         {!usePrivateKey && (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[9px] font-mono text-muted-foreground/60">or connect Phantom:</span>
-            <div className="[&_button]:!h-7 [&_button]:!text-[10px] [&_button]:!font-mono [&_button]:!rounded-md [&_button]:!px-3 [&_button]:!border-primary/30 [&_button]:!bg-black/40">
+            <div className="[&_button]:!h-7 [&_button]:!text-[10px] [&_button]:!font-mono [&_button]:!rounded-md [&_button]:!px-3 [&_button]:!border-primary/30 [&_button]:!bg-background/60">
               <WalletMultiButton />
             </div>
             {connected && walletAddress && (
@@ -497,7 +497,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       </div>
 
       {isReady && mint && pnlData && pnlData.tradeCount > 0 && (
-        <div className="border border-primary/10 rounded-md p-3 bg-black/20" data-testid="section-pnl">
+        <div className="border border-primary/10 rounded-md p-3 bg-background/40" data-testid="section-pnl">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-3.5 h-3.5 text-primary" />
             <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">P&L Summary</span>
@@ -506,13 +506,13 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           <div className="grid grid-cols-3 gap-2">
             <div className="text-center">
               <div className="text-[9px] font-mono text-muted-foreground uppercase">Spent</div>
-              <div className="text-xs font-mono text-red-400" data-testid="text-pnl-spent">
+              <div className="text-xs font-mono text-destructive" data-testid="text-pnl-spent">
                 {formatSol(pnlData.totalSpentSol)} SOL
               </div>
             </div>
             <div className="text-center">
               <div className="text-[9px] font-mono text-muted-foreground uppercase">Received</div>
-              <div className="text-xs font-mono text-green-400" data-testid="text-pnl-received">
+              <div className="text-xs font-mono text-primary" data-testid="text-pnl-received">
                 {formatSol(pnlData.totalReceivedSol)} SOL
               </div>
             </div>
@@ -520,7 +520,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
               <div className="text-[9px] font-mono text-muted-foreground uppercase">Net P&L</div>
               <div className={cn(
                 "text-xs font-mono font-bold flex items-center justify-center gap-0.5",
-                pnlData.realizedPnlSol >= 0 ? "text-green-400" : "text-red-400"
+                pnlData.realizedPnlSol >= 0 ? "text-primary" : "text-destructive"
               )} data-testid="text-pnl-realized">
                 {pnlData.realizedPnlSol >= 0 ? (
                   <TrendingUp className="w-3 h-3" />
@@ -533,14 +533,14 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
           </div>
           {pnlData.hasOpenPosition && pnlData.costBasisSol > 0 && (
             <div className="mt-2 pt-2 border-t border-primary/10 flex items-center justify-center">
-              <span className="text-[9px] font-mono text-yellow-400">Open position — cost basis: {formatSol(pnlData.costBasisSol)} SOL</span>
+              <span className="text-[9px] font-mono text-accent">Open position — cost basis: {formatSol(pnlData.costBasisSol)} SOL</span>
             </div>
           )}
         </div>
       )}
 
       {showSettings && (
-        <div className="border border-primary/10 rounded-md p-3 space-y-3 bg-black/20">
+        <div className="border border-primary/10 rounded-md p-3 space-y-3 bg-background/40">
           <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Bot Configuration</div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -610,7 +610,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       )}
 
       {mint && currentNci !== null && (
-        <div className="border border-primary/10 rounded-md p-3 bg-black/20">
+        <div className="border border-primary/10 rounded-md p-3 bg-background/40">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">NCI Signal</span>
             {evalLoading && <Loader2 className="w-3 h-3 animate-spin text-primary/50" />}
@@ -629,7 +629,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
                   </div>
                   <div className="w-full h-1 bg-muted rounded-full mt-0.5">
                     <div
-                      className={cn("h-full rounded-full transition-all duration-500", currentEval.action === "BUY" ? "bg-green-400" : currentEval.action === "SELL" ? "bg-red-400" : "bg-primary")}
+                      className={cn("h-full rounded-full transition-all duration-500", currentEval.action === "BUY" ? "bg-primary" : currentEval.action === "SELL" ? "bg-destructive" : "bg-accent")}
                       style={{ width: `${currentEval.confidence}%` }}
                     />
                   </div>
@@ -714,7 +714,7 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
             tradeHistory.map((signal) => (
               <div
                 key={signal.id}
-                className="flex items-center gap-2 px-2 py-1.5 border border-primary/5 rounded-md bg-black/10 text-[10px] font-mono flex-wrap"
+                className="flex items-center gap-2 px-2 py-1.5 border border-primary/5 rounded-md bg-background/30 text-[10px] font-mono flex-wrap"
                 data-testid={`row-trade-${signal.id}`}
               >
                 <span className={cn("font-bold", getActionColor(signal.action))}>

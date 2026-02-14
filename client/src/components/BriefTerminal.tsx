@@ -21,13 +21,12 @@ export function BriefTerminal({ content, generatedAt, className }: BriefTerminal
     setDisplayText("");
     setIsTyping(true);
     let currentIndex = 0;
-    const speed = 5; // typing speed in ms
+    const speed = 5;
 
     const intervalId = setInterval(() => {
       if (currentIndex < content.length) {
         setDisplayText((prev) => prev + content[currentIndex]);
         currentIndex++;
-        // Auto scroll to bottom
         if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
@@ -54,7 +53,7 @@ export function BriefTerminal({ content, generatedAt, className }: BriefTerminal
         <Button 
           variant="outline" 
           size="sm" 
-          className="h-8 w-8 p-0 border-primary/20 hover:bg-primary/10 hover:text-primary"
+          className="h-8 w-8 p-0 border-primary/20"
           onClick={handleCopy}
         >
           <Copy className="h-4 w-4" />
@@ -71,7 +70,7 @@ export function BriefTerminal({ content, generatedAt, className }: BriefTerminal
 
       <div 
         ref={scrollRef}
-        className="h-[300px] overflow-y-auto pr-2 custom-scrollbar text-primary/90 whitespace-pre-wrap"
+        className="h-[300px] overflow-y-auto pr-2 custom-scrollbar text-foreground/80 whitespace-pre-wrap"
       >
         {displayText}
         {isTyping && <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse align-middle" />}

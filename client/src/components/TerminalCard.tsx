@@ -17,20 +17,20 @@ export function TerminalCard({ title, children, className, delay = 0, highlight 
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay, ease: "easeOut" }}
       className={cn(
-        "terminal-card flex flex-col p-4 rounded-sm bg-black/40",
-        highlight && "border-primary/50 shadow-[0_0_15px_rgba(0,255,128,0.1)]",
+        "terminal-card flex flex-col p-4 rounded-sm bg-background/60",
+        highlight && "border-primary/40 shadow-[0_0_15px_rgba(0,191,255,0.1)]",
         className
       )}
     >
-      <div className="flex items-center justify-between mb-4 border-b border-primary/20 pb-2">
+      <div className="flex items-center justify-between mb-4 border-b border-primary/15 pb-2">
         <h3 className="text-sm md:text-base font-mono text-primary/80 uppercase tracking-widest flex items-center gap-2">
           <span className="w-2 h-2 bg-primary inline-block animate-pulse" />
           {title}
         </h3>
         <div className="flex gap-1">
+          <div className="w-1 h-1 bg-accent/40 rounded-full" />
           <div className="w-1 h-1 bg-primary/30 rounded-full" />
-          <div className="w-1 h-1 bg-primary/30 rounded-full" />
-          <div className="w-1 h-1 bg-primary/30 rounded-full" />
+          <div className="w-1 h-1 bg-secondary/30 rounded-full" />
         </div>
       </div>
       <div className="flex-1 relative z-10">
