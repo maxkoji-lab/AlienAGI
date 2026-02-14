@@ -167,8 +167,8 @@ export function buildBrief(mint: string, holders: number, holdersDelta24h: numbe
 
 **Mint:** \`${mint}\`
 
-## Conviction Index
-- **NCI:** **${nci.toFixed(1)}/100**  (${band})
+## Pippin Index
+- **Pippin's Mind:** **${nci.toFixed(1)}/100**  (${band})
 - **Operator posture:** ${posture}
 
 ## Community Growth
@@ -256,7 +256,7 @@ export async function runOperatorLoop() {
         posture
       });
 
-      console.log(`Tick complete. NCI: ${nciEma.toFixed(1)}`);
+      console.log(`Tick complete. Pippin's Mind: ${nciEma.toFixed(1)}`);
     } catch (e) {
       console.error("Operator loop error:", e);
     }
