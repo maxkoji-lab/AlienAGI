@@ -42,4 +42,4 @@ waitForPort = 5000
 [userenv]
 
 [userenv.shared]
-NOOP_MINT = "WAITING_FOR_LAUNCH"
+NOOP_MINT = "Z9PsrWGq7eb9mSSRoHSKRZ7DZ3ASkT1eBguuyR3pump"
