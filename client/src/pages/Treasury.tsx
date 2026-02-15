@@ -1,6 +1,6 @@
 import { TerminalCard } from "@/components/TerminalCard";
 import { useTreasuryStats } from "@/hooks/use-treasury";
-import { Flame, Gift, ShieldCheck, ArrowLeft, ExternalLink, Globe, Activity, Clock, Zap } from "lucide-react";
+import { Flame, Gift, Wallet, ShieldCheck, ArrowLeft, ExternalLink, Globe, Activity, Clock, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
