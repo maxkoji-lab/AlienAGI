@@ -242,11 +242,6 @@ export default function Treasury() {
                 )}
               </div>
             </div>
-            {buybackStatus?.lastError && (
-              <div className="mt-2 text-xs font-mono text-destructive/80" data-testid="text-last-error">
-                Last error: {buybackStatus.lastError}
-              </div>
-            )}
           </TerminalCard>
         </motion.div>
 
