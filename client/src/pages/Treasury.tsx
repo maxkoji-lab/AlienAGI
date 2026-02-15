@@ -1,6 +1,6 @@
 import { TerminalCard } from "@/components/TerminalCard";
 import { useTreasuryStats } from "@/hooks/use-treasury";
-import { Flame, Gift, Wallet, ShieldCheck, ArrowLeft, ExternalLink, Globe, Activity, Clock, Zap } from "lucide-react";
+import { Flame, Gift, ShieldCheck, ArrowLeft, ExternalLink, Globe, Activity, Clock, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -213,9 +213,6 @@ export default function Treasury() {
                 <span className="font-mono text-sm text-primary" data-testid="text-buyback-engine-status">
                   {buybackStatus?.isRunning ? "ENGINE ACTIVE" : "ENGINE OFFLINE"}
                 </span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  0.05 SOL every 3-5 min
-                </span>
               </div>
               <div className="flex items-center gap-6 text-xs font-mono flex-wrap">
                 <div className="flex items-center gap-2">
@@ -245,15 +242,6 @@ export default function Treasury() {
                 )}
               </div>
             </div>
-            {buybackStatus?.wallet && (
-              <div className="mt-3 pt-3 border-t border-primary/10 flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                <Wallet className="w-3 h-3 text-primary" />
-                <span data-testid="text-wallet-balance">Dev Wallet: {buybackStatus.wallet.sol.toFixed(4)} SOL</span>
-                <span className="text-[10px] text-muted-foreground/60 truncate max-w-[200px]" data-testid="text-wallet-address">
-                  {buybackStatus.wallet.publicKey.slice(0, 6)}...{buybackStatus.wallet.publicKey.slice(-4)}
-                </span>
-              </div>
-            )}
             {buybackStatus?.lastError && (
               <div className="mt-2 text-xs font-mono text-destructive/80" data-testid="text-last-error">
                 Last error: {buybackStatus.lastError}
@@ -397,7 +385,7 @@ export default function Treasury() {
             <div className="space-y-2">
               <h4 className="text-primary uppercase tracking-wider text-xs border-b border-primary/20 pb-1">Buyback Protocol</h4>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Dev wallet automatically deploys 0.05 SOL every 3-5 minutes to acquire ${symbol} tokens via Jupiter V6 swap.
+                Automated engine continuously acquires ${symbol} tokens via Jupiter V6 swap on Solana.
               </p>
             </div>
             <div className="space-y-2">
