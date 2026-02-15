@@ -62,6 +62,17 @@ export async function registerRoutes(
     });
   });
 
+  app.get("/api/treasury/token", async (_req, res) => {
+    const mint = process.env.NOOP_MINT;
+    if (!mint) return res.json({ mint: null, profile: null });
+    try {
+      const profile = await fetchTokenProfile(mint);
+      res.json({ mint, profile });
+    } catch {
+      res.json({ mint, profile: null });
+    }
+  });
+
   app.get(api.treasury.stats.path, async (_req, res) => {
     const stats = await storage.getTreasuryStats();
     res.json(stats);
