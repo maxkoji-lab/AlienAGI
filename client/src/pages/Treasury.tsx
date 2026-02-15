@@ -1,13 +1,10 @@
-import { useState } from "react";
 import { TerminalCard } from "@/components/TerminalCard";
 import { useTreasuryStats } from "@/hooks/use-treasury";
-import { Flame, Gift, Wallet, ShieldCheck, ArrowLeft, ExternalLink, Globe, Loader2, Zap, CheckCircle, XCircle } from "lucide-react";
+import { Flame, Gift, Wallet, ShieldCheck, ArrowLeft, ExternalLink, Globe, Activity, Clock, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 interface TokenProfile {
   name: string;
@@ -26,6 +23,16 @@ interface TokenProfile {
   dexscreenerUrl: string | null;
 }
 
+interface AutoBuybackStatus {
+  totalExecuted: number;
+  totalFailed: number;
+  lastExecutedAt: string | null;
+  lastError: string | null;
+  nextScheduledAt: string | null;
+  isRunning: boolean;
+  wallet: { sol: number; publicKey: string } | null;
+}
+
 function formatUsd(val: number): string {
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(2)}M`;
   if (val >= 1_000) return `$${(val / 1_000).toFixed(2)}K`;
@@ -39,9 +46,27 @@ function formatSol(val: number): string {
   return `${val.toFixed(4)} SOL`;
 }
 
+function timeAgo(isoStr: string): string {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function timeUntil(isoStr: string): string {
+  const diff = new Date(isoStr).getTime() - Date.now();
+  if (diff <= 0) return "any moment";
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  return `${mins}m ${secs % 60}s`;
+}
+
 export default function Treasury() {
   const [, navigate] = useLocation();
-  const { toast } = useToast();
   const { data: stats, isLoading: loadingStats } = useTreasuryStats();
 
   const { data: tokenData, isLoading: loadingToken } = useQuery<{ mint: string | null; profile: TokenProfile | null }>({
@@ -49,9 +74,9 @@ export default function Treasury() {
     refetchInterval: 60000,
   });
 
-  const { data: walletData } = useQuery<{ sol: number; publicKey: string }>({
-    queryKey: ["/api/treasury/buyback/wallet"],
-    refetchInterval: 30000,
+  const { data: buybackStatus } = useQuery<AutoBuybackStatus>({
+    queryKey: ["/api/treasury/buyback/status"],
+    refetchInterval: 10000,
   });
 
   const { data: buybackHistory } = useQuery<any[]>({
@@ -59,40 +84,9 @@ export default function Treasury() {
     refetchInterval: 15000,
   });
 
-  const [solAmount, setSolAmount] = useState("0.01");
-  const [slippage, setSlippage] = useState("100");
-  const [lastResult, setLastResult] = useState<{ success: boolean; txSignature?: string; tokensReceived?: number; error?: string } | null>(null);
-
-  const executeBuybackMutation = useMutation({
-    mutationFn: async (params: { solAmount: number; slippageBps: number }) => {
-      const adminKey = walletData?.publicKey || "";
-      const res = await fetch("/api/treasury/buyback/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
-        body: JSON.stringify(params),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: "Request failed" }));
-        throw new Error(err.message || "Buyback failed");
-      }
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setLastResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/treasury/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/treasury/buybacks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/treasury/buyback/wallet"] });
-      if (data.success) {
-        toast({ title: "Buyback Executed", description: `Acquired ${data.tokensReceived?.toLocaleString()} tokens` });
-      } else {
-        toast({ title: "Buyback Failed", description: data.error || data.message || "Transaction failed", variant: "destructive" });
-      }
-    },
-    onError: (err: any) => {
-      const msg = err?.message || "Buyback failed";
-      setLastResult({ success: false, error: msg });
-      toast({ title: "Buyback Error", description: msg, variant: "destructive" });
-    },
+  const { data: burnHistory } = useQuery<any[]>({
+    queryKey: ["/api/treasury/burns"],
+    refetchInterval: 15000,
   });
 
   const profile = tokenData?.profile;
@@ -107,21 +101,6 @@ export default function Treasury() {
 
   const buybackUsd = buybackTokens * tokenPrice;
   const burnedUsd = burnedTokens * tokenPrice;
-
-  const handleExecute = () => {
-    const sol = parseFloat(solAmount);
-    const slip = parseInt(slippage);
-    if (isNaN(sol) || sol <= 0) {
-      toast({ title: "Invalid amount", description: "Enter a valid SOL amount", variant: "destructive" });
-      return;
-    }
-    if (walletData && sol > walletData.sol) {
-      toast({ title: "Insufficient balance", description: `Wallet has ${walletData.sol.toFixed(4)} SOL`, variant: "destructive" });
-      return;
-    }
-    setLastResult(null);
-    executeBuybackMutation.mutate({ solAmount: sol, slippageBps: isNaN(slip) ? 100 : slip });
-  };
 
   if (loadingStats || loadingToken) {
     return (
@@ -158,7 +137,7 @@ export default function Treasury() {
             </div>
             <p className="text-sm font-mono text-muted-foreground flex items-center gap-2 ml-12">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              BUYBACK // BURN // REWARD TRACKER
+              AUTOMATED BUYBACK // BURN // REWARD TRACKER
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -168,10 +147,9 @@ export default function Treasury() {
           </div>
         </header>
 
-        {/* Token Profile Card */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <div className="bg-background/50 border border-primary/20 rounded-sm p-4" data-testid="section-treasury-token">
-            {profile ? (
+        {profile && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+            <div className="bg-background/50 border border-primary/20 rounded-sm p-4" data-testid="section-treasury-token">
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {profile.imageUrl && (
@@ -223,148 +201,67 @@ export default function Treasury() {
                   )}
                 </div>
               </div>
-            ) : (
+            </div>
+          </motion.div>
+        )}
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
+          <TerminalCard title="Auto-Buyback Engine" delay={0} highlight>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <span className="w-2 h-2 bg-accent rounded-full"></span>
-                <span className="text-sm font-mono text-muted-foreground">
-                  {mint ? `Token: ${mint.slice(0, 12)}...${mint.slice(-6)}` : "No token configured (NOOP_MINT not set)"}
+                <div className={`w-3 h-3 rounded-full ${buybackStatus?.isRunning ? "bg-primary animate-pulse" : "bg-muted-foreground"}`}></div>
+                <span className="font-mono text-sm text-primary" data-testid="text-buyback-engine-status">
+                  {buybackStatus?.isRunning ? "ENGINE ACTIVE" : "ENGINE OFFLINE"}
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  0.05 SOL every 3-5 min
                 </span>
               </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Buyback Execution Panel */}
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }}>
-          <TerminalCard title="Execute Buyback" delay={0} highlight>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                  <Wallet className="w-4 h-4 text-primary" />
-                  <span data-testid="text-wallet-balance">
-                    Dev Wallet: {walletData ? `${walletData.sol.toFixed(4)} SOL` : "Loading..."}
-                  </span>
-                  {walletData && (
-                    <span className="text-[10px] text-muted-foreground/60 truncate max-w-[180px]" data-testid="text-wallet-address">
-                      {walletData.publicKey.slice(0, 6)}...{walletData.publicKey.slice(-4)}
-                    </span>
-                  )}
+              <div className="flex items-center gap-6 text-xs font-mono flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-3 h-3 text-primary" />
+                  <span className="text-muted-foreground">Executed:</span>
+                  <span className="text-primary" data-testid="text-cycles-executed">{buybackStatus?.totalExecuted || 0}</span>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs text-muted-foreground font-mono uppercase tracking-wider">SOL Amount</label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    value={solAmount}
-                    onChange={(e) => setSolAmount(e.target.value)}
-                    className="w-full bg-background/60 border border-primary/20 text-primary font-mono px-3 py-2 rounded-sm text-sm focus:outline-none focus:border-primary"
-                    placeholder="0.01"
-                    disabled={executeBuybackMutation.isPending}
-                    data-testid="input-buyback-sol"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Slippage (bps)</label>
+                {buybackStatus?.totalFailed ? (
                   <div className="flex items-center gap-2">
-                    {["50", "100", "200", "500"].map((v) => (
-                      <Button
-                        key={v}
-                        variant={slippage === v ? "default" : "outline"}
-                        size="sm"
-                        className="font-mono text-xs"
-                        onClick={() => setSlippage(v)}
-                        disabled={executeBuybackMutation.isPending}
-                        data-testid={`button-slippage-${v}`}
-                      >
-                        {(parseInt(v) / 100).toFixed(1)}%
-                      </Button>
-                    ))}
-                    <input
-                      type="number"
-                      value={slippage}
-                      onChange={(e) => setSlippage(e.target.value)}
-                      className="w-16 bg-background/60 border border-primary/20 text-primary font-mono px-2 py-1 rounded-sm text-xs focus:outline-none focus:border-primary text-center"
-                      disabled={executeBuybackMutation.isPending}
-                      data-testid="input-slippage-custom"
-                    />
+                    <span className="text-muted-foreground">Failed:</span>
+                    <span className="text-destructive" data-testid="text-cycles-failed">{buybackStatus.totalFailed}</span>
                   </div>
-                </div>
-
-                <Button
-                  className="w-full font-mono"
-                  onClick={handleExecute}
-                  disabled={executeBuybackMutation.isPending}
-                  data-testid="button-execute-buyback"
-                >
-                  {executeBuybackMutation.isPending ? (
-                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> EXECUTING SWAP...</>
-                  ) : (
-                    <><Zap className="w-4 h-4 mr-2" /> EXECUTE BUYBACK</>
-                  )}
-                </Button>
-
-                {lastResult && (
-                  <div className={`border rounded-sm p-3 text-xs font-mono space-y-1 ${lastResult.success ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"}`} data-testid="section-buyback-result">
-                    <div className="flex items-center gap-2">
-                      {lastResult.success ? <CheckCircle className="w-4 h-4 text-primary" /> : <XCircle className="w-4 h-4 text-destructive" />}
-                      <span className={lastResult.success ? "text-primary" : "text-destructive"}>
-                        {lastResult.success ? "BUYBACK SUCCESSFUL" : "BUYBACK FAILED"}
-                      </span>
-                    </div>
-                    {lastResult.tokensReceived != null && (
-                      <p className="text-muted-foreground">Tokens received: <span className="text-secondary">{lastResult.tokensReceived.toLocaleString()}</span></p>
-                    )}
-                    {lastResult.txSignature && (
-                      <a
-                        href={`https://solscan.io/tx/${lastResult.txSignature}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary/80 underline hover-elevate inline-block"
-                        data-testid="link-buyback-tx"
-                      >
-                        View on Solscan
-                      </a>
-                    )}
-                    {lastResult.error && <p className="text-destructive/80">{lastResult.error}</p>}
+                ) : null}
+                {buybackStatus?.lastExecutedAt && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Last:</span>
+                    <span className="text-foreground/80" data-testid="text-last-execution">{timeAgo(buybackStatus.lastExecutedAt)}</span>
+                  </div>
+                )}
+                {buybackStatus?.nextScheduledAt && (
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3 h-3 text-primary" />
+                    <span className="text-muted-foreground">Next:</span>
+                    <span className="text-primary" data-testid="text-next-execution">{timeUntil(buybackStatus.nextScheduledAt)}</span>
                   </div>
                 )}
               </div>
-
-              <div className="space-y-3">
-                <h4 className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Recent Buybacks</h4>
-                <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                  {!buybackHistory || buybackHistory.length === 0 ? (
-                    <p className="text-xs text-muted-foreground font-mono">No buybacks executed yet</p>
-                  ) : (
-                    buybackHistory.slice(0, 10).map((b: any) => (
-                      <div key={b.id} className="flex items-center justify-between gap-2 text-xs font-mono border-b border-primary/5 pb-1" data-testid={`row-buyback-${b.id}`}>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-primary">{b.amountSol} SOL</span>
-                          <span className="text-muted-foreground">{Number(b.amountTokens).toLocaleString()} {symbol}</span>
-                        </div>
-                        <div className="flex flex-col items-end shrink-0">
-                          <span className={b.status === "executed" ? "text-primary" : b.status === "failed" ? "text-destructive" : "text-muted-foreground"}>
-                            {b.status.toUpperCase()}
-                          </span>
-                          {b.txSignature && (
-                            <a href={`https://solscan.io/tx/${b.txSignature}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/60 hover-elevate" data-testid={`link-buyback-tx-${b.id}`}>
-                              {b.txSignature.slice(0, 8)}...
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             </div>
+            {buybackStatus?.wallet && (
+              <div className="mt-3 pt-3 border-t border-primary/10 flex items-center gap-3 text-xs font-mono text-muted-foreground">
+                <Wallet className="w-3 h-3 text-primary" />
+                <span data-testid="text-wallet-balance">Dev Wallet: {buybackStatus.wallet.sol.toFixed(4)} SOL</span>
+                <span className="text-[10px] text-muted-foreground/60 truncate max-w-[200px]" data-testid="text-wallet-address">
+                  {buybackStatus.wallet.publicKey.slice(0, 6)}...{buybackStatus.wallet.publicKey.slice(-4)}
+                </span>
+              </div>
+            )}
+            {buybackStatus?.lastError && (
+              <div className="mt-2 text-xs font-mono text-destructive/80" data-testid="text-last-error">
+                Last error: {buybackStatus.lastError}
+              </div>
+            )}
           </TerminalCard>
         </motion.div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
             <TerminalCard title="Tokens Bought Back" delay={0}>
@@ -433,19 +330,80 @@ export default function Treasury() {
           </motion.div>
         </div>
 
-        {/* Protocol Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }}>
+            <TerminalCard title="Recent Buybacks" delay={0}>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {!buybackHistory || buybackHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground font-mono" data-testid="text-no-buybacks">Awaiting first automated buyback cycle...</p>
+                ) : (
+                  buybackHistory.slice(0, 15).map((b: any) => (
+                    <div key={b.id} className="flex items-center justify-between gap-2 text-xs font-mono border-b border-primary/5 pb-1.5" data-testid={`row-buyback-${b.id}`}>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-primary">{Number(b.amountSol).toFixed(4)} SOL</span>
+                        <span className="text-muted-foreground">{Number(b.amountTokens).toLocaleString()} {symbol}</span>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className={b.status === "executed" ? "text-primary" : b.status === "failed" ? "text-destructive" : "text-muted-foreground"}>
+                          {b.status.toUpperCase()}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/60">{b.ts ? timeAgo(b.ts) : ""}</span>
+                        {b.txSignature && (
+                          <a href={`https://solscan.io/tx/${b.txSignature}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/60 hover-elevate" data-testid={`link-buyback-tx-${b.id}`}>
+                            {b.txSignature.slice(0, 8)}...
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </TerminalCard>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }}>
+            <TerminalCard title="Recent Burns" delay={0}>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {!burnHistory || burnHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground font-mono" data-testid="text-no-burns">Awaiting first automated burn cycle...</p>
+                ) : (
+                  burnHistory.slice(0, 15).map((b: any) => (
+                    <div key={b.id} className="flex items-center justify-between gap-2 text-xs font-mono border-b border-accent/5 pb-1.5" data-testid={`row-burn-${b.id}`}>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-accent">{Number(b.amountTokens).toLocaleString()} {symbol}</span>
+                        <span className="text-[10px] text-muted-foreground/60">source: {b.source}</span>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className={b.status === "executed" ? "text-accent" : b.status === "failed" ? "text-destructive" : "text-muted-foreground"}>
+                          {b.status.toUpperCase()}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/60">{b.ts ? timeAgo(b.ts) : ""}</span>
+                        {b.txSignature && (
+                          <a href={`https://solscan.io/tx/${b.txSignature}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent/60 hover-elevate" data-testid={`link-burn-tx-${b.id}`}>
+                            {b.txSignature.slice(0, 8)}...
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </TerminalCard>
+          </motion.div>
+        </div>
+
         <TerminalCard title={`${symbol} Treasury Protocol`} delay={0}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-sm">
             <div className="space-y-2">
               <h4 className="text-primary uppercase tracking-wider text-xs border-b border-primary/20 pb-1">Buyback Protocol</h4>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Treasury deploys SOL to acquire ${symbol} tokens from the open market via Jupiter V6 swap, reducing circulating supply.
+                Dev wallet automatically deploys 0.05 SOL every 3-5 minutes to acquire ${symbol} tokens via Jupiter V6 swap.
               </p>
             </div>
             <div className="space-y-2">
-              <h4 className="text-accent uppercase tracking-wider text-xs border-b border-accent/20 pb-1">Burn Mechanism</h4>
+              <h4 className="text-accent uppercase tracking-wider text-xs border-b border-accent/20 pb-1">Auto-Burn</h4>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Acquired tokens are permanently destroyed, increasing scarcity and long-term value for remaining holders.
+                All acquired tokens are immediately and permanently burned on-chain, reducing circulating supply automatically.
               </p>
             </div>
             <div className="space-y-2">
@@ -457,13 +415,8 @@ export default function Treasury() {
           </div>
         </TerminalCard>
 
-        <footer className="border-t border-primary/20 pt-6 flex flex-col md:flex-row justify-between items-center gap-2 text-xs text-muted-foreground font-mono">
-          <p data-testid="text-treasury-footer">PippinAGI TREASURY OPS // ${symbol} PROTOCOL</p>
-          <div className="flex gap-4">
-            <span>CAMPAIGNS: {stats?.activeCampaigns || 0}</span>
-            <span>BURNED: {burnedTokens.toLocaleString()}</span>
-            <span className="text-primary">ACTIVE</span>
-          </div>
+        <footer className="text-center text-xs font-mono text-muted-foreground/40 pb-4 pt-2">
+          PIPPINAGI TREASURY // ALL OPERATIONS AUTOMATED // FULLY ON-CHAIN VERIFIED
         </footer>
       </div>
     </div>

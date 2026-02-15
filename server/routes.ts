@@ -7,7 +7,7 @@ import { insertBuybackSchema, insertBurnSchema, insertRewardCampaignSchema, inse
 import { z } from "zod";
 import { fetchTokenProfile } from "./services/dexscreener";
 import { startMonitoring, stopMonitoring, getAlerts, clearAlerts, getMonitorStatus } from "./services/xmonitor";
-import { executeBuyback, getBuybackQuote, getWalletBalance, getWalletPublicKey } from "./services/buyback";
+import { getWalletBalance, getAutoBuybackStatus, startAutoBuybackLoop } from "./services/buyback";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -79,49 +79,18 @@ export async function registerRoutes(
     res.json(stats);
   });
 
-  app.get("/api/treasury/buyback/wallet", async (_req, res) => {
-    try {
-      const info = await getWalletBalance();
-      res.json(info);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
+  startAutoBuybackLoop();
 
-  app.post("/api/treasury/buyback/quote", async (req, res) => {
+  app.get("/api/treasury/buyback/status", async (_req, res) => {
     try {
-      const { solAmount, slippageBps } = req.body;
-      if (!solAmount || solAmount <= 0) {
-        return res.status(400).json({ message: "solAmount required and must be positive" });
-      }
-      const quote = await getBuybackQuote(solAmount, slippageBps || 100);
-      res.json(quote);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.post("/api/treasury/buyback/execute", async (req, res) => {
-    try {
-      const authKey = req.headers["x-admin-key"] as string | undefined;
-      let authorized = false;
+      const status = getAutoBuybackStatus();
+      let wallet = null;
       try {
-        const expectedPubkey = getWalletPublicKey();
-        authorized = authKey === expectedPubkey;
-      } catch { /* wallet not configured */ }
-      if (!authorized) {
-        return res.status(403).json({ success: false, message: "Unauthorized: invalid admin key" });
-      }
-
-      const { solAmount, slippageBps } = req.body;
-      if (!solAmount || solAmount <= 0) {
-        return res.status(400).json({ message: "solAmount required and must be positive" });
-      }
-      const result = await executeBuyback(solAmount, slippageBps || 100);
-      res.json(result);
+        wallet = await getWalletBalance();
+      } catch {}
+      res.json({ ...status, wallet });
     } catch (e: any) {
-      console.error("[Buyback API] Error:", e.message);
-      res.status(500).json({ success: false, message: e.message });
+      res.status(500).json({ message: e.message });
     }
   });
 
