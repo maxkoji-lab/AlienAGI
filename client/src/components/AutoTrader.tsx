@@ -653,25 +653,12 @@ export function AutoTrader({ mint, tokenSymbol, currentNci, currentBand }: AutoT
       <div className="flex items-center gap-2 flex-wrap">
         <Button
           size="sm"
-          variant={botEnabled ? "destructive" : "default"}
-          onClick={() => {
-            if (!isReady) {
-              toast({ title: "Enter a private key or connect Phantom wallet", variant: "destructive" });
-              return;
-            }
-            if (!mint) {
-              toast({ title: "Scan a token first", variant: "destructive" });
-              return;
-            }
-            setBotEnabled(!botEnabled);
-            toast({
-              title: botEnabled ? "Bot Disabled" : "Bot Enabled",
-              description: botEnabled ? "Auto-trading stopped" : `Auto-trading ${tokenSymbol ? `$${tokenSymbol}` : "token"} based on Pippin's Mind`,
-            });
-          }}
+          variant="outline"
+          disabled
+          className="opacity-50 cursor-not-allowed"
           data-testid="button-toggle-bot"
         >
-          {botEnabled ? <><Pause className="w-3 h-3 mr-1" /> Stop Bot</> : <><Play className="w-3 h-3 mr-1" /> Start Bot</>}
+          <Play className="w-3 h-3 mr-1" /> Start Bot (Coming Soon)
         </Button>
         {isReady && mint && (
           <div className="flex gap-1 ml-auto">
