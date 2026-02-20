@@ -1,6 +1,7 @@
 import { TerminalCard } from "@/components/TerminalCard";
 import { useTreasuryStats } from "@/hooks/use-treasury";
 import { Flame, Gift, Wallet, ShieldCheck, ArrowLeft, ExternalLink, Globe, Activity, Clock, Zap } from "lucide-react";
+import treasuryBg from "@assets/HBBg5zfbUAAALTx_1771564379927.jpg";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -116,6 +117,13 @@ export default function Treasury() {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8 relative overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center">
+        <img
+          src={treasuryBg}
+          alt=""
+          className="pippin-float max-h-[85vh] max-w-[70vw] object-contain opacity-20 drop-shadow-[0_0_60px_rgba(0,255,100,0.15)]"
+        />
+      </div>
       <div className="scanline"></div>
 
       <div className="max-w-5xl mx-auto relative z-10 space-y-8">
