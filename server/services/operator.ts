@@ -256,7 +256,7 @@ export async function runOperatorLoop() {
         posture
       });
 
-      console.log(`Tick complete. Pippin's Mind: ${nciEma.toFixed(1)}`);
+      console.log(`Tick complete. Alien's Mind: ${nciEma.toFixed(1)}`);
     } catch (e) {
       console.error("Operator loop error:", e);
     }
