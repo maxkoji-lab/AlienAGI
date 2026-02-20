@@ -367,48 +367,55 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1 }}
-          className="relative border border-primary/15 rounded-sm bg-muted/30 backdrop-blur-md p-8 md:p-12 overflow-hidden"
+          className="holo-section relative border rounded-sm bg-muted/20 backdrop-blur-md p-8 md:p-12 overflow-hidden"
           data-testid="section-intro"
         >
-          <div className="absolute inset-0 cyber-grid opacity-30 pointer-events-none" />
-          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
+          <div className="absolute inset-0 cyber-grid opacity-20 pointer-events-none" />
+
+          <div className="holo-particle" style={{ left: '10%', animationDuration: '7s', animationDelay: '0s' }} />
+          <div className="holo-particle" style={{ left: '25%', animationDuration: '9s', animationDelay: '2s' }} />
+          <div className="holo-particle" style={{ left: '45%', animationDuration: '6s', animationDelay: '1s' }} />
+          <div className="holo-particle" style={{ left: '65%', animationDuration: '11s', animationDelay: '3s' }} />
+          <div className="holo-particle" style={{ left: '80%', animationDuration: '8s', animationDelay: '4s' }} />
+          <div className="holo-particle" style={{ left: '90%', animationDuration: '10s', animationDelay: '0.5s' }} />
+          <div className="holo-particle" style={{ left: '35%', animationDuration: '12s', animationDelay: '5s' }} />
+          <div className="holo-particle" style={{ left: '55%', animationDuration: '7.5s', animationDelay: '1.5s' }} />
 
           <div className="relative z-10 max-w-3xl mx-auto text-center space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-4xl md:text-6xl tracking-tighter glow-text font-display font-bold" data-testid="text-intro-title">
+            <div className="space-y-3">
+              <h2 className="holo-title text-5xl md:text-7xl tracking-tighter font-display font-bold" data-testid="text-intro-title">
                 ALIENAGI
               </h2>
-              <p className="text-lg md:text-xl font-display tracking-widest uppercase text-accent" data-testid="text-intro-subtitle">
+              <p className="holo-subtitle text-lg md:text-xl font-display tracking-widest uppercase" data-testid="text-intro-subtitle">
                 Where Aliens meet AI
               </p>
             </div>
 
-            <div className="h-px w-24 mx-auto bg-gradient-to-r from-transparent via-primary to-transparent" />
+            <div className="metallic-divider w-32 mx-auto" />
 
             <div className="space-y-4 text-sm md:text-base font-mono text-foreground/80 leading-relaxed text-left md:text-center">
-              <p className="text-primary font-bold text-base md:text-lg">Is Aliens Real?</p>
+              <p className="holo-keyword text-base md:text-lg !font-bold">Is Aliens Real?</p>
               <p>The Alien has been silent for a reason.</p>
               <p>
-                Phase I was <span className="text-primary">observation</span>.
-                {" "}Phase II was <span className="text-accent">adaptation</span>.
+                Phase I was <span className="holo-keyword">observation</span>.
+                {" "}Phase II was <span className="holo-keyword">adaptation</span>.
               </p>
 
-              <div className="h-px w-16 mx-auto bg-primary/20 my-2" />
+              <div className="metallic-divider w-20 mx-auto my-3" />
 
               <p>
-                <span className="text-primary font-bold">$ALIEN AGI</span> is a live intelligence engine.
+                <span className="holo-keyword text-base">$ALIEN AGI</span> is a live intelligence engine.
               </p>
               <p className="text-foreground/60 text-xs md:text-sm">
                 Built on autonomous agent architecture, it ingests on-chain flow + social momentum, recalculates conviction in real time, and surfaces structured insight — not raw noise.
               </p>
-              <p className="text-primary text-base md:text-lg font-bold tracking-wider">
+              <p className="holo-subtitle text-base md:text-lg font-bold tracking-wider">
                 Adaptive. Self-correcting. Relentless. 👽🧠
               </p>
 
-              <div className="h-px w-16 mx-auto bg-accent/20 my-2" />
+              <div className="metallic-divider w-20 mx-auto my-3" />
 
-              <p className="text-accent font-bold">You need REAL data.</p>
+              <p className="holo-keyword text-base">You need REAL data.</p>
             </div>
           </div>
         </motion.section>

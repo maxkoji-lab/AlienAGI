@@ -192,3 +192,140 @@
   0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 100, 0.1), inset 0 0 5px rgba(0, 255, 100, 0.05); }
   50% { box-shadow: 0 0 15px rgba(0, 255, 100, 0.2), inset 0 0 10px rgba(0, 255, 100, 0.08); }
 }
+
+@keyframes holo-shift {
+  0% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    background-position: 50% 100%;
+    filter: hue-rotate(30deg);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: hue-rotate(60deg);
+  }
+  75% {
+    background-position: 50% 0%;
+    filter: hue-rotate(30deg);
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+}
+
+@keyframes metallic-sheen {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes iridescent-border {
+  0% { border-color: rgba(0, 255, 100, 0.3); box-shadow: 0 0 15px rgba(0, 255, 100, 0.1), inset 0 0 30px rgba(0, 255, 100, 0.03); }
+  25% { border-color: rgba(0, 200, 255, 0.3); box-shadow: 0 0 15px rgba(0, 200, 255, 0.1), inset 0 0 30px rgba(0, 200, 255, 0.03); }
+  50% { border-color: rgba(170, 0, 255, 0.3); box-shadow: 0 0 15px rgba(170, 0, 255, 0.1), inset 0 0 30px rgba(170, 0, 255, 0.03); }
+  75% { border-color: rgba(255, 0, 200, 0.2); box-shadow: 0 0 15px rgba(255, 0, 200, 0.08), inset 0 0 30px rgba(255, 0, 200, 0.02); }
+  100% { border-color: rgba(0, 255, 100, 0.3); box-shadow: 0 0 15px rgba(0, 255, 100, 0.1), inset 0 0 30px rgba(0, 255, 100, 0.03); }
+}
+
+@keyframes holo-text {
+  0% { color: #00e676; text-shadow: 0 0 10px rgba(0, 230, 118, 0.6), 0 0 30px rgba(0, 230, 118, 0.2); }
+  20% { color: #00e5ff; text-shadow: 0 0 10px rgba(0, 229, 255, 0.6), 0 0 30px rgba(0, 229, 255, 0.2); }
+  40% { color: #d500f9; text-shadow: 0 0 10px rgba(213, 0, 249, 0.5), 0 0 30px rgba(213, 0, 249, 0.15); }
+  60% { color: #ff4081; text-shadow: 0 0 10px rgba(255, 64, 129, 0.4), 0 0 30px rgba(255, 64, 129, 0.1); }
+  80% { color: #00e5ff; text-shadow: 0 0 10px rgba(0, 229, 255, 0.6), 0 0 30px rgba(0, 229, 255, 0.2); }
+  100% { color: #00e676; text-shadow: 0 0 10px rgba(0, 230, 118, 0.6), 0 0 30px rgba(0, 230, 118, 0.2); }
+}
+
+@keyframes particle-drift {
+  0% { transform: translateY(100%) translateX(0) scale(0); opacity: 0; }
+  10% { opacity: 1; scale: 1; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-100vh) translateX(50px) scale(0.3); opacity: 0; }
+}
+
+.holo-section {
+  animation: iridescent-border 6s ease-in-out infinite;
+  position: relative;
+}
+
+.holo-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 255, 100, 0.03) 0%,
+      rgba(0, 200, 255, 0.04) 20%,
+      rgba(170, 0, 255, 0.03) 40%,
+      rgba(255, 0, 200, 0.02) 60%,
+      rgba(0, 255, 100, 0.03) 80%,
+      rgba(0, 200, 255, 0.04) 100%
+    );
+  background-size: 400% 400%;
+  animation: holo-shift 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.holo-title {
+  background: linear-gradient(
+    90deg,
+    #00e676 0%,
+    #00e5ff 15%,
+    #d500f9 30%,
+    #ff4081 45%,
+    #ffab40 55%,
+    #00e5ff 70%,
+    #00e676 85%,
+    #d500f9 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: metallic-sheen 4s linear infinite;
+  filter: brightness(1.2) saturate(1.3);
+}
+
+.holo-subtitle {
+  animation: holo-text 5s ease-in-out infinite;
+}
+
+.metallic-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 255, 100, 0.3) 15%,
+    rgba(0, 200, 255, 0.5) 30%,
+    rgba(170, 0, 255, 0.5) 50%,
+    rgba(0, 200, 255, 0.5) 70%,
+    rgba(0, 255, 100, 0.3) 85%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: metallic-sheen 3s linear infinite;
+}
+
+.holo-keyword {
+  background: linear-gradient(90deg, #00e676, #00e5ff, #d500f9, #00e676);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: metallic-sheen 3s linear infinite;
+  font-weight: 700;
+}
+
+.holo-particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 255, 100, 0.8), rgba(0, 200, 255, 0.4));
+  animation: particle-drift linear infinite;
+  pointer-events: none;
+}
