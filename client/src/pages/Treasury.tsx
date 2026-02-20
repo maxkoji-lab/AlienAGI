@@ -399,7 +399,7 @@ export default function Treasury() {
         </TerminalCard>
 
         <footer className="text-center text-xs font-mono text-muted-foreground/40 pb-4 pt-2">
-          PIPPINAGI TREASURY // ALL OPERATIONS AUTOMATED // FULLY ON-CHAIN VERIFIED
+          ALIENAGI TREASURY // ALL OPERATIONS AUTOMATED // FULLY ON-CHAIN VERIFIED
         </footer>
       </div>
     </div>
