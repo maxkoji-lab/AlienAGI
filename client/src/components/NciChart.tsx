@@ -4,14 +4,14 @@ import { format } from "date-fns";
 import { type Metric } from "@shared/schema";
 
 const COLORS = {
-  nciLine: "#00bfff",
-  emaLine: "#ff3399",
-  holderLine: "#c2cdd6",
-  grid: "#2a3545",
-  axisText: "#6b7b8d",
+  nciLine: "#00e676",
+  emaLine: "#aa00ff",
+  holderLine: "#80cbc4",
+  grid: "#1a2e1a",
+  axisText: "#4a7a5a",
   refCold: "#ff4444",
-  refMid: "#4a5568",
-  refHot: "#00bfff",
+  refMid: "#2e4a3a",
+  refHot: "#00e676",
 };
 
 interface NciChartProps {
@@ -81,11 +81,11 @@ export function NciChart({ data }: NciChartProps) {
           </p>
           <div className="space-y-1">
             <p className="text-sm" style={{ color: COLORS.nciLine }}>
-              <span className="text-muted-foreground text-xs mr-2">PIPPIN RAW:</span>
+              <span className="text-muted-foreground text-xs mr-2">ALIEN RAW:</span>
               {Number(payload[0]?.value).toFixed(4)}
             </p>
             <p className="text-sm" style={{ color: COLORS.emaLine }}>
-              <span className="text-muted-foreground text-xs mr-2">PIPPIN EMA:</span>
+              <span className="text-muted-foreground text-xs mr-2">ALIEN EMA:</span>
               {Number(payload[1]?.value).toFixed(4)}
             </p>
             <p className="text-sm" style={{ color: COLORS.holderLine }}>
