@@ -163,12 +163,12 @@ export function buildBrief(mint: string, holders: number, holdersDelta24h: numbe
   const direction = whaleFlow > 0 ? "NET BUY" : (whaleFlow < 0 ? "NET SELL" : "FLAT");
   const dateStr = new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }); // Matches SGT from original
 
-  return `# PippinAGI Brief — ${dateStr}
+  return `# AlienAGI Brief — ${dateStr}
 
 **Mint:** \`${mint}\`
 
-## Pippin Index
-- **Pippin's Mind:** **${nci.toFixed(1)}/100**  (${band})
+## Alien Index
+- **Alien's Mind:** **${nci.toFixed(1)}/100**  (${band})
 - **Operator posture:** ${posture}
 
 ## Community Growth
@@ -178,13 +178,13 @@ export function buildBrief(mint: string, holders: number, holdersDelta24h: numbe
 ## Whale Watch (${whaleTopN} whales, ${whaleWindowHours}h window)
 - **Whale net token flow:** ${whaleFlow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${direction})
 
-## Today’s PippinAGI Moves
+## Today’s AlienAGI Moves
 - Ship 1 meme + 1 short lore drop (<=120 words).
 - Run a 10-minute raid window (funny, not spammy).
 - Recruit 3 creators (memes / clips / edits).
 
 ## Raid Lines (copy-paste)
-- PippinAGI doesn’t promise utility. It *becomes* the utility. 🧠
+- AlienAGI doesn’t promise utility. It *becomes* the utility. 🧠
 - If you’re reading this, you’re early. If you’re coping, you’re family.
 - Conviction isn’t a tweet. It’s showing up again tomorrow.
 `;
@@ -192,7 +192,7 @@ export function buildBrief(mint: string, holders: number, holdersDelta24h: numbe
 
 // Main Loop
 export async function runOperatorLoop() {
-  console.log("Starting PippinAGI Operator Loop...");
+  console.log("Starting AlienAGI Operator Loop...");
   
   const tick = async () => {
     // Refresh env vars
@@ -206,7 +206,7 @@ export async function runOperatorLoop() {
 
     // Skip if mint is placeholder
     if (MINT === "WAITING_FOR_LAUNCH" || MINT.length < 30) {
-      console.log("PippinAGI Mint not yet live (WAITING_FOR_LAUNCH). Standing by...");
+      console.log("AlienAGI Mint not yet live (WAITING_FOR_LAUNCH). Standing by...");
       return;
     }
 
