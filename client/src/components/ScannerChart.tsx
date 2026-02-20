@@ -6,16 +6,16 @@ import { Pause, Play } from "lucide-react";
 import { format } from "date-fns";
 
 const COLORS = {
-  nciLine: "#00bfff",
-  nciGlow: "rgba(0, 191, 255, 0.15)",
-  holderLine: "#ff3399",
-  grid: "rgba(42, 53, 69, 0.2)",
-  axisText: "#6b7b8d",
+  nciLine: "#00e676",
+  nciGlow: "rgba(0, 230, 118, 0.12)",
+  holderLine: "#aa00ff",
+  grid: "rgba(0, 255, 100, 0.06)",
+  axisText: "#4a7a5a",
   refCold: "rgba(255, 68, 68, 0.5)",
-  refMid: "rgba(74, 85, 104, 0.4)",
-  refHot: "rgba(0, 191, 255, 0.5)",
+  refMid: "rgba(0, 255, 100, 0.15)",
+  refHot: "rgba(0, 230, 118, 0.5)",
   bg: "rgba(0, 0, 0, 0)",
-  scanLine: "rgba(0, 191, 255, 0.03)",
+  scanLine: "rgba(0, 255, 100, 0.03)",
 };
 
 interface LiveDataPoint {
@@ -314,14 +314,14 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
 
     drawGlowLine(
       (p) => holderToY(p.holders),
-      COLORS.holderLine, "rgba(255,51,153,0.05)", 1.5, false, true
+      COLORS.holderLine, "rgba(170,0,255,0.05)", 1.5, false, true
     );
 
     const scanX = padLeft + ((scrollOffsetRef.current * 2) % chartW);
     const scanGrad = ctx.createLinearGradient(scanX - 30, 0, scanX + 30, 0);
-    scanGrad.addColorStop(0, "rgba(0,191,255,0)");
+    scanGrad.addColorStop(0, "rgba(0,255,100,0)");
     scanGrad.addColorStop(0.5, COLORS.scanLine);
-    scanGrad.addColorStop(1, "rgba(0,191,255,0)");
+    scanGrad.addColorStop(1, "rgba(0,255,100,0)");
     ctx.fillStyle = scanGrad;
     ctx.fillRect(scanX - 30, padTop, 60, chartH);
 
