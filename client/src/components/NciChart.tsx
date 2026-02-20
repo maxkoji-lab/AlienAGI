@@ -107,7 +107,7 @@ export function NciChart({ data }: NciChartProps) {
         <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
         <span className="text-[10px] font-mono text-accent uppercase tracking-widest">Live</span>
         <span className="text-[10px] font-mono text-muted-foreground ml-2">
-          Pippin: {latestNci.toFixed(2)}
+          Alien: {latestNci.toFixed(2)}
         </span>
       </div>
       <ResponsiveContainer width="100%" height="100%">

@@ -375,7 +375,7 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-4 text-xs font-mono">
             <span className="text-primary" data-testid="text-live-nci">
-              Pippin: {displayNci.toFixed(2)}
+              Alien: {displayNci.toFixed(2)}
               {nciDelta !== 0 && (
                 <span className={nciDelta > 0 ? "text-secondary ml-1" : "text-destructive ml-1"}>
                   {nciDelta > 0 ? "+" : ""}{nciDelta.toFixed(2)}
@@ -415,7 +415,7 @@ export function ScannerChart({ mint, initialNci, initialHolders, initialWhaleCon
       <div className="flex items-center justify-center gap-6 text-[10px] font-mono text-muted-foreground">
         <div className="flex items-center gap-2">
           <span className="w-3 h-0.5" style={{ backgroundColor: COLORS.nciLine }} />
-          <span>Pippin's Mind (0-100)</span>
+          <span>Alien's Mind (0-100)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-0.5 border-t border-dashed" style={{ borderColor: COLORS.holderLine }} />

@@ -315,7 +315,7 @@ export async function registerRoutes(
         ? `\nToken Name: ${profile.name} ($${profile.symbol})\nPrice: $${profile.priceUsd || 'N/A'}\nMarket Cap: $${profile.marketCap?.toLocaleString() || 'N/A'}\nLore/Description: ${profile.description || 'None available'}`
         : '';
 
-      const prompt = `Analyze this Solana token:\nMint: ${mint}${profileInfo}\nHolders: ${holders}\nTop 20 whales hold: ${concentrationPct.toFixed(1)}% of supply\nPippin's Mind Score: ${nciRaw.toFixed(1)}/100 (${band})\nPosture: ${posture}\n\nProvide a brief, actionable analysis covering: holder distribution health, whale risk, and overall conviction assessment. Keep it concise (under 200 words). Use a direct, analytical tone.`;
+      const prompt = `Analyze this Solana token:\nMint: ${mint}${profileInfo}\nHolders: ${holders}\nTop 20 whales hold: ${concentrationPct.toFixed(1)}% of supply\nAlien's Mind Score: ${nciRaw.toFixed(1)}/100 (${band})\nPosture: ${posture}\n\nProvide a brief, actionable analysis covering: holder distribution health, whale risk, and overall conviction assessment. Keep it concise (under 200 words). Use a direct, analytical tone.`;
 
       let aiAnalysis: string | null = null;
       try {
