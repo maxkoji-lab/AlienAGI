@@ -6,7 +6,7 @@ import { ScannerChart, type ScannerLiveData } from "@/components/ScannerChart";
 import { BriefTerminal } from "@/components/BriefTerminal";
 import { Activity, Users, TrendingUp, Cpu, AlertTriangle, Vault, Search, Loader2, Scan, ExternalLink, Globe, Bell, Radio, Power, PowerOff } from "lucide-react";
 import { AutoTrader } from "@/components/AutoTrader";
-import pippinBg from "@assets/VS_(2)_1771040587852.png";
+import alienBg from "@assets/VS_1771557878006.png";
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -309,9 +309,9 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8 relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center">
         <img
-          src={pippinBg}
+          src={alienBg}
           alt=""
-          className="pippin-float max-h-[70vh] max-w-[50vw] object-contain opacity-40 drop-shadow-[0_0_40px_rgba(0,191,255,0.2)]"
+          className="pippin-float max-h-[80vh] max-w-[60vw] object-contain opacity-25 drop-shadow-[0_0_60px_rgba(0,255,100,0.15)]"
         />
       </div>
       <div className="scanline"></div>
