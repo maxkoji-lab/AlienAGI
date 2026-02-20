@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  /* Alien Cypher / AI Neural Network Palette */
+  /* Cypher / Neural Network Palette */
   --background: 160 30% 4%;              /* Near-black with alien green tint */
   --foreground: 160 20% 75%;             /* Soft phosphor green-grey */
   
