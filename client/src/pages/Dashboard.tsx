@@ -100,7 +100,7 @@ function buildScannerBrief(
   const posture = live?.posture || analysis.posture;
   const whaleConc = live ? live.whaleConcentration.toFixed(2) + "%" : analysis.whaleConcentration;
 
-  let brief = `# PippinAGI Brief — ${name}
+  let brief = `# AlienAGI Brief — ${name}
 Scanned: ${dateStr}
 
 Mint: ${analysis.mint}
@@ -770,7 +770,7 @@ export default function Dashboard() {
         {/* Chart Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <TerminalCard title="PippinAGI Auto-Trade Engine" className="h-full min-h-[400px]" delay={0.5}>
+            <TerminalCard title="AlienAGI Auto-Trade Engine" className="h-full min-h-[400px]" delay={0.5}>
               <AutoTrader
                 mint={analysis?.mint || null}
                 tokenSymbol={analysis?.profile?.symbol || null}
@@ -811,7 +811,7 @@ export default function Dashboard() {
         {/* Footer */}
         <footer className="border-t border-primary/20 pt-6 mt-8 flex flex-col items-center gap-3 text-xs text-muted-foreground font-mono">
           <div className="flex flex-col md:flex-row justify-between items-center w-full gap-2">
-            <p>PippinAGI Terminal // SYSTEM ID: XJ-9</p>
+            <p>AlienAGI Terminal // SYSTEM ID: XJ-9</p>
             <div className="flex gap-4">
               <span>LATENCY: 12ms</span>
               <span>NODES: 4 Active</span>

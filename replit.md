@@ -1,7 +1,7 @@
-# PippinAGI
+# AlienAGI
 
 ## Overview
-PippinAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
+AlienAGI is a fullstack Solana token metrics tracking application with an integrated AI agent (BabyAGI 3). It monitors token holder counts, whale net flows, and calculates a Network Conviction Index (NCI). The system generates daily operator briefs and displays real-time metrics in a cyberpunk-themed terminal dashboard.
 
 ## Recent Changes
 - 2026-02-15: Fully automated buyback+burn loop — background service buys 0.05 SOL of tokens every 3-5 min via Jupiter V6, then immediately burns all acquired tokens on-chain using SPL burn instruction. Both buyback and burn transactions recorded to database.
@@ -15,7 +15,8 @@ PippinAGI is a fullstack Solana token metrics tracking application with an integ
 - 2026-02-12: Token Scanner now shows full token profile card with logo, links, and lore from DexScreener
 - 2026-02-12: Added Token Scanner — users can input any Solana contract address to get holder analysis, whale concentration, NCI score, and optional BabyAGI-3 AI analysis
 - 2026-02-12: Added Treasury system (buybacks, burns, reward campaigns) with full CRUD API and cyberpunk-themed Treasury page
-- 2026-02-12: Renamed project from "NoopCoin" to "PippinAGI" across all components
+- 2026-02-20: Rebranded from "PippinAGI" to "AlienAGI" across all components
+- 2026-02-12: Renamed project from "NoopCoin" to "PippinAGI" (later rebranded to AlienAGI)
 - 2026-02-12: Imported BabyAGI 3 AI agent framework from GitHub (yoheinakajima/babyagi3)
 - 2026-02-12: Configured BabyAGI 3 to use port 3001 to avoid conflict with dashboard on port 5000
 
@@ -68,4 +69,4 @@ PippinAGI is a fullstack Solana token metrics tracking application with an integ
 ## User Preferences
 - Cyberpunk/terminal aesthetic with dark theme
 - Use Helius API (not manual Solana RPC) for data
-- Project branded as "PippinAGI"
+- Project branded as "AlienAGI"
