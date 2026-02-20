@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  /* Pippin AI / Robotics Lab Palette */
+  /* Alien AI / Robotics Lab Palette */
   --background: 215 25% 7%;           /* Deep charcoal with blue tint */
   --foreground: 210 15% 80%;          /* Light blue-grey / silver (#C2CDD6) */
   
